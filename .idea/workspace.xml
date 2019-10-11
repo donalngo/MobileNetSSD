@@ -1,15 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="e6f92109-d0f9-486c-897c-078661f65941" name="Default Changelist" comment="" />
+    <list default="true" id="e6f92109-d0f9-486c-897c-078661f65941" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/keras_ssd.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/keras_ssd.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ssd7_training.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/ssd7_training.ipynb" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
   <component name="ProjectId" id="1Rs9mdG1bxtP68f4dggewFZ4iit" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="PropertiesComponent">
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
@@ -25,7 +36,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.train_ssd">
+  <component name="RunManager" selected="Python.keras_ssd">
     <configuration name="keras_layer_AnchorBoxes" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="ssd_keras-master" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -47,7 +58,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="keras_ssd" type="PythonConfigurationType" factoryName="Python" temporary="true">
+    <configuration name="keras_ssd" type="PythonConfigurationType" factoryName="Python">
       <module name="ssd_keras-master" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -92,7 +103,6 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.train_ssd" />
-        <item itemvalue="Python.keras_ssd" />
         <item itemvalue="Python.keras_layer_AnchorBoxes" />
       </list>
     </recent_temporary>
@@ -110,6 +120,19 @@
     </task>
     <servers />
   </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="COLUMN_ORDER" />
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
@@ -120,12 +143,12 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/models/keras_ssd.py</url>
-          <line>323</line>
+          <line>457</line>
           <option name="timeStamp" value="4" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/models/keras_ssd.py</url>
-          <line>168</line>
+          <line>302</line>
           <option name="timeStamp" value="6" />
         </line-breakpoint>
       </breakpoints>
