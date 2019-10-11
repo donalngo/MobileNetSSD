@@ -2,7 +2,16 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e6f92109-d0f9-486c-897c-078661f65941" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/models/train_ssd - Copy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/ssd_keras-master.iml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/keras_loss_function/keras_ssd_loss.py" beforeDir="false" afterPath="$PROJECT_DIR$/keras_loss_function/keras_ssd_loss.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/keras_ssd.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/keras_ssd.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/train_ssd.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/train_ssd.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -37,7 +46,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.keras_ssd">
+  <component name="RunManager">
     <configuration name="keras_layer_AnchorBoxes" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="ssd_keras-master" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -51,27 +60,6 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/keras_layers/keras_layer_AnchorBoxes.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="keras_ssd" type="PythonConfigurationType" factoryName="Python">
-      <module name="ssd_keras-master" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/models" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/models/keras_ssd.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -156,12 +144,12 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/models/keras_ssd.py</url>
-          <line>457</line>
+          <line>596</line>
           <option name="timeStamp" value="4" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/models/keras_ssd.py</url>
-          <line>302</line>
+          <line>441</line>
           <option name="timeStamp" value="6" />
         </line-breakpoint>
       </breakpoints>
