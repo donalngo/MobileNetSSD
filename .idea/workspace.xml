@@ -2,11 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e6f92109-d0f9-486c-897c-078661f65941" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/keras_ssd.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/keras_ssd.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ssd7_training.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/ssd7_training.ipynb" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -15,6 +11,11 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="Git.Settings">
+    <option name="PREVIOUS_COMMIT_AUTHORS">
+      <list>
+        <option value="Donal" />
+      </list>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="ProjectId" id="1Rs9mdG1bxtP68f4dggewFZ4iit" />
@@ -118,6 +119,14 @@
       <option name="presentableId" value="Default" />
       <updated>1570445096488</updated>
     </task>
+    <task id="LOCAL-00001" summary="Added Functions:&#10;- read_csv&#10;- xml_to_csv&#10;- image_augmentation&#10;- image_batch_generator&#10;- data_generator">
+      <created>1570782084412</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1570782084412</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -132,6 +141,10 @@
         </entry>
       </map>
     </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Added Functions:&#10;- read_csv&#10;- xml_to_csv&#10;- image_augmentation&#10;- image_batch_generator&#10;- data_generator" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added Functions:&#10;- read_csv&#10;- xml_to_csv&#10;- image_augmentation&#10;- image_batch_generator&#10;- data_generator" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
