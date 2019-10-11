@@ -1,4 +1,6 @@
 from keras_ssd import build_model
+from keras_ssd import compute_loss
+from keras.optimizers import Adam
 
 model = build_model((300,300,3),
                 10,
@@ -9,5 +11,8 @@ model = build_model((300,300,3),
                 normalize_coords=False,
                 subtract_mean=None,
                 divide_by_stddev=None)
+
+adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+model.compile(optimizer=adam, loss=compute_loss)
 
 model.summary()
