@@ -850,12 +850,13 @@ def image_augmentation(data_csv, img_dir, filename, img_sz=300, translate=0, rot
     ])
     # Augment BBs and images.
     image_aug, bbs_aug = seq(image=img, bounding_boxes=bbs)
+    image_aug /= 255
     bbs_aug = bbs_aug.remove_out_of_image().clip_out_of_image()
 
     return image_aug, bbs_aug
 
 
-def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, augment, img_sz=300, translate=0, rotate=0,
+def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, img_sz=300, translate=0, rotate=0,
                           scale=0, shear=0, hor_flip=False, ver_flip=False):
     """Batch Generator for Training Images
     Generator which returns batches of numpy array consisting of 2 numpy arrays for training
@@ -893,20 +894,19 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, augmen
             end = i * batch_size + batch_size
             batch_data = images[start:end]
 
-        if augment is True:
-            for j in batch_data:
-                # do image augmentation and returns augmented image and bounding boxes
-                image_aug, bbs_aug = image_augmentation(csv_data,
-                                                        img_dir,
-                                                        j,
-                                                        img_sz=img_sz,
-                                                        translate=translate,
-                                                        rotate=rotate,
-                                                        scale=scale,
-                                                        shear=shear,
-                                                        hor_flip=hor_flip,
-                                                        ver_flip=ver_flip)
-                list_of_img.append(image_aug)
+        for j in batch_data:
+            # do image augmentation and returns augmented image and bounding boxes
+            image_aug, bbs_aug = image_augmentation(csv_data,
+                                                    img_dir,
+                                                    j,
+                                                    img_sz=img_sz,
+                                                    translate=translate,
+                                                    rotate=rotate,
+                                                    scale=scale,
+                                                    shear=shear,
+                                                    hor_flip=hor_flip,
+                                                    ver_flip=ver_flip)
+            list_of_img.append(image_aug)
 
         # convert batch of inputs and ground truth into numpy array
         X = np.asarray(list_of_img)
@@ -964,7 +964,6 @@ def data_generator(img_dir, xml_dir, batch_size=None, steps_per_epoch=None, img_
                                             splitted_data_csv_train,
                                             steps_per_epoch,
                                             batch_size,
-                                            augment=augment,
                                             img_sz=img_sz,
                                             translate=translate,
                                             rotate=rotate,
@@ -977,26 +976,14 @@ def data_generator(img_dir, xml_dir, batch_size=None, steps_per_epoch=None, img_
                                             splitted_data_csv_valid,
                                             steps_per_epoch,
                                             batch_size,
-                                            augment=False,
-                                            img_sz=img_sz,
-                                            translate=translate,
-                                            rotate=rotate,
-                                            scale=scale,
-                                            shear=shear,
-                                            hor_flip=hor_flip,
-                                            ver_flip=ver_flip)
+                                            img_sz=img_sz
+                                            )
 
     test_batch_gen = image_batch_generator(img_dir,
                                            splitted_data_csv_test,
                                            steps_per_epoch,
                                            batch_size,
-                                           augment=False,
-                                           img_sz=img_sz,
-                                           translate=translate,
-                                           rotate=rotate,
-                                           scale=scale,
-                                           shear=shear,
-                                           hor_flip=hor_flip,
-                                           ver_flip=ver_flip)
+                                           img_sz=img_sz
+                                           )
 
     return train_batch_gen, valid_batch_gen, test_batch_gen
