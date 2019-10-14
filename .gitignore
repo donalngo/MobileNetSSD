@@ -26,7 +26,6 @@ models/MnF/
 .idea/**/dbnavigator.xml
 
 .idea
-test
 # C extensions
 *.so
 
