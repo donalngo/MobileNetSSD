@@ -1,7 +1,9 @@
 from keras import backend as K
 from keras_ssd import build_model
-from keras_ssd import compute_loss
-from keras.optimizers import Adam
+from keras_ssd import SSDLoss
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras import losses
+from keras_loss_function.keras_ssd_loss import SSDLoss
 
 
 model = build_model((300,300,3),
@@ -19,6 +21,7 @@ model = build_model((300,300,3),
 #model.load_weights(args.weight_file, by_name=True,skip_mismatch=True)
 
 adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+
 ssd_loss = compute_loss(neg_pos_ratio=3,n_neg_min=0,alpha=1.0)
 model.compile(optimizer=adam, loss=ssd_loss)
 
@@ -246,3 +249,8 @@ history = model.fit_generator(generator=train_generator,
                               initial_epoch=initial_epoch)
 
 #%% Block 6: Training
+
+ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0)
+model.compile(optimizer=adam, loss=ssd_loss.compute_loss)
+model.summary()
+

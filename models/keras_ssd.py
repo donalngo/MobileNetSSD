@@ -20,15 +20,25 @@ from __future__ import division
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Lambda, Conv2D, MaxPooling2D, BatchNormalization, ELU, Reshape, Concatenate, Activation, DepthwiseConv2D, Add
+from tensorflow.keras.layers import Input, Lambda, Conv2D, MaxPooling2D, BatchNormalization, ELU, Reshape, Concatenate, \
+    Activation, DepthwiseConv2D, Add
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.nn import relu6
 import tensorflow.keras.backend as K
 
 from keras_layers.keras_layer_AnchorBoxes import AnchorBoxes
-#from keras_layers.keras_layer_DecodeDetections import DecodeDetections
-#from keras_layers.keras_layer_DecodeDetectionsFast import DecodeDetectionsFast
+# from keras_layers.keras_layer_DecodeDetections import DecodeDetections
+# from keras_layers.keras_layer_DecodeDetectionsFast import DecodeDetectionsFast
+
+import imgaug as ia
+import imgaug.augmenters as iaa
+from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+import cv2
+import csv
+import random
+import xml.etree.ElementTree as ET
+import glob
 
 
 def smooth_L1_loss(y_true, y_pred):
@@ -47,6 +57,7 @@ def smooth_L1_loss(y_true, y_pred):
     l1_loss = tf.where(tf.less(absolute_loss, 1.0), square_loss, absolute_loss - 0.5)
     return tf.reduce_sum(l1_loss, axis=-1)
 
+
 def log_loss(y_true, y_pred):
     '''
     Compute the softmax log loss.
@@ -61,12 +72,13 @@ def log_loss(y_true, y_pred):
         The softmax log loss, a  Tensorflow tensor of shape (batch, n_boxes_total).
     '''
     # Make sure that  (which would break the log function)
-    y_pred = tf.maximum(y_pred, 1e-15) # `y_pred` should not contain any zeros before applying log func
+    y_pred = tf.maximum(y_pred, 1e-15)  # `y_pred` should not contain any zeros before applying log func
     # Compute the log loss
     log_loss = -tf.reduce_sum(y_true * tf.log(y_pred), axis=-1)
     return log_loss
 
-def compute_loss(y_true, y_pred, neg_pos_ratio=3,n_neg_min=0,alpha=1.0):
+
+def compute_loss(y_true, y_pred, neg_pos_ratio=3, n_neg_min=0, alpha=1.0):
     '''
     Compute the loss of the SSD model prediction against the ground truth.
 
@@ -92,8 +104,10 @@ def compute_loss(y_true, y_pred, neg_pos_ratio=3,n_neg_min=0,alpha=1.0):
     n_boxes = tf.shape(y_pred)[1]  # total number of boxes per image
 
     # 1: Clasification and Localisation Loss for every box
-    classification_loss = tf.to_float(log_loss(y_true[:, :, :-12], y_pred[:, :, :-12]))  # Output shape: (batch_size, n_boxes)
-    localization_loss = tf.to_float(smooth_L1_loss(y_true[:, :, -12:-8], y_pred[:, :, -12:-8]))  # Output shape: (batch_size, n_boxes)
+    classification_loss = tf.to_float(
+        log_loss(y_true[:, :, :-12], y_pred[:, :, :-12]))  # Output shape: (batch_size, n_boxes)
+    localization_loss = tf.to_float(
+        smooth_L1_loss(y_true[:, :, -12:-8], y_pred[:, :, -12:-8]))  # Output shape: (batch_size, n_boxes)
 
     # 2: Classification losses for the positive and negative targets.
 
@@ -101,7 +115,7 @@ def compute_loss(y_true, y_pred, neg_pos_ratio=3,n_neg_min=0,alpha=1.0):
     negatives = y_true[:, :, 0]  # shape (batch_size, n_boxes)
     positives = tf.to_float(tf.reduce_max(y_true[:, :, 1:-12], axis=-1))  # shape (batch_size, n_boxes)
 
-    n_positive = tf.reduce_sum(positives) # number of positive boxes in ground truth across the whole batch
+    n_positive = tf.reduce_sum(positives)  # number of positive boxes in ground truth across the whole batch
 
     # 2.b Positive class loss
     pos_class_loss = tf.reduce_sum(classification_loss * positives, axis=-1)  # shape (batch_size,)
@@ -148,12 +162,152 @@ def compute_loss(y_true, y_pred, neg_pos_ratio=3,n_neg_min=0,alpha=1.0):
     total_loss = total_loss * tf.to_float(batch_size)
     return total_loss
 
+class SSDLoss:
+    def __init__(self,
+                 neg_pos_ratio=3,
+                 n_neg_min=0,
+                 alpha=1.0):
+        '''
+        Arguments:
+            neg_pos_ratio: Maximum ratio of number of negative to positive ground truth boxes to include in losss calculation
+            n_neg_min: Minimum number of negative ground truth boxes to include in loss calculation
+            alpha: weight for localisation loss as a fraction of classification loss
+        '''
+        self.neg_pos_ratio = neg_pos_ratio
+        self.n_neg_min = n_neg_min
+        self.alpha = alpha
+
+    def smooth_L1_loss(self, y_true, y_pred):
+        '''
+        Compute smooth L1 loss.
+
+        Arguments:
+            y_true (nD tensor): Ground Truth TensorFlow tensor of shape (batch_size, #boxes, 4)
+                contains '(xmin, xmax, ymin, ymax)'.
+            y_pred (nD tensor): Preciction TensorFlow tensor of identical structure to `y_true`
+        Returns:
+            The smooth L1 loss, a 2D Tensorflow tensor of shape (batch, n_boxes_total).
+        '''
+        absolute_loss = tf.abs(y_true - y_pred)
+        square_loss = 0.5 * (y_true - y_pred) ** 2
+        l1_loss = tf.where(tf.less(absolute_loss, 1.0), square_loss, absolute_loss - 0.5)
+        return tf.reduce_sum(l1_loss, axis=-1)
+
+    def log_loss(self, y_true, y_pred):
+        '''
+        Compute the softmax log loss.
+
+        Arguments:
+            y_true (nD tensor): A Ground Truth TensorFlow tensor of shape (batch_size, #boxes, #classes)
+                contains the ground truth bounding box categories.
+            y_pred (nD tensor): A TensorFlow tensor of identical structure to `y_true` containing
+                the predicted data, in this context the predicted bounding box categories.
+
+        Returns:
+            The softmax log loss, a  Tensorflow tensor of shape (batch, n_boxes_total).
+        '''
+        # Make sure that  (which would break the log function)
+        y_pred = tf.maximum(y_pred, 1e-15)  # `y_pred` should not contain any zeros before applying log func
+        # Compute the log loss
+        log_loss = -tf.reduce_sum(y_true * tf.log(y_pred), axis=-1)
+        return log_loss
+
+    def compute_loss(self, y_true, y_pred):
+        '''
+        Compute the loss of the SSD model prediction against the ground truth.
+
+        Arguments:
+            y_true (nD tensor): A Ground Truth TensorFlow tensor of shape (batch_size, #boxes, #classes + 12)
+                where `#boxes` is the total number of boxes that the model predicts
+                contains the ground truth bounding box categories. The last axis `#classes + 12` contains
+                [classes one-hot encoded, 4 ground truth box coordinate offsets, 8 arbitrary entries]
+            y_pred (nD tensor): A TensorFlow tensor of identical structure to `y_true` containing
+                the predicted data, in this context the predicted bounding box categories.
+            neg_pos_ratio: Maximum ration of number of negative to positive ground truth boxes to include in losss calculation
+            n_neg_min: Minimum number of negative ground truth boxes to include in loss calculation
+            alpha: weight for localisation loss as a fraction of classification loss
+
+        Returns:
+            A scalar, the total multitask loss for classification and localization.
+        '''
+        neg_pos_ratio = 3
+        n_neg_min = 0
+        alpha = 1.0
+        neg_pos_ratio = tf.constant(neg_pos_ratio)
+        n_neg_min = tf.constant(n_neg_min)
+        alpha = tf.constant(alpha)
+
+        batch_size = tf.shape(y_pred)[0]
+        n_boxes = tf.shape(y_pred)[1]  # total number of boxes per image
+
+        # 1: Clasification and Localisation Loss for every box
+        classification_loss = tf.to_float(
+            self.log_loss(y_true[:, :, :-12], y_pred[:, :, :-12]))  # Output shape: (batch_size, n_boxes)
+        localization_loss = tf.to_float(
+            self.smooth_L1_loss(y_true[:, :, -12:-8], y_pred[:, :, -12:-8]))  # Output shape: (batch_size, n_boxes)
+
+        # 2: Classification losses for the positive and negative targets.
+
+        # 2.a Masks for the positive and negative ground truth classes.
+        negatives = y_true[:, :, 0]  # shape (batch_size, n_boxes)
+        positives = tf.to_float(tf.reduce_max(y_true[:, :, 1:-12], axis=-1))  # shape (batch_size, n_boxes)
+
+        n_positive = tf.reduce_sum(positives)  # number of positive boxes in ground truth across the whole batch
+
+        # 2.b Positive class loss
+        pos_class_loss = tf.reduce_sum(classification_loss * positives, axis=-1)  # shape (batch_size,)
+
+        # 2.c Negatve class loss
+        neg_class_loss_all = classification_loss * negatives  # shape (batch_size, n_boxes)
+        n_neg_losses = tf.count_nonzero(neg_class_loss_all,
+                                        dtype=tf.int32)
+        n_negative_keep = tf.minimum(tf.maximum(neg_pos_ratio * tf.to_int32(n_positive), n_neg_min), n_neg_losses)
+
+        # n_neg_losses will be 0 when either there are no negative ground truth boxes at all or
+        # classification loss for all negative boxes is zero. Unlikely but return zero as the `neg_class_loss` in that case.
+        def zero_loss():
+            return tf.zeros([batch_size])
+
+        # Otherwise compute the top-k negative loss.
+        def topk_loss():
+            # Reshape `neg_class_loss_all` to 1D.
+            neg_class_loss_all_1D = tf.reshape(neg_class_loss_all, [-1])  # shape (batch_size * n_boxes,)
+            # Get top-k indices
+            values, indices = tf.nn.top_k(neg_class_loss_all_1D,
+                                          k=n_negative_keep,
+                                          sorted=False)
+            # Negative Keep Mask
+            negatives_keep = tf.scatter_nd(indices=tf.expand_dims(indices, axis=1),
+                                           updates=tf.ones_like(indices, dtype=tf.int32),
+                                           shape=tf.shape(neg_class_loss_all_1D))  # shape (batch_size * n_boxes,)
+            negatives_keep = tf.to_float(
+                tf.reshape(negatives_keep, [batch_size, n_boxes]))  # shape (batch_size, n_boxes)
+            neg_class_loss = tf.reduce_sum(classification_loss * negatives_keep, axis=-1)  # shape (batch_size,)
+            return neg_class_loss
+
+        neg_class_loss = tf.cond(tf.equal(n_neg_losses, tf.constant(0)), zero_loss(), topk_loss())
+        # 2.d Total class loss
+        class_loss = pos_class_loss + neg_class_loss  # shape (batch_size,)
+
+        # 3: Localisation Loss for Positive boxes
+        loc_loss = tf.reduce_sum(localization_loss * positives, axis=-1)  # shape (batch_size,)
+
+        # 4: Total Loss
+        total_loss = (class_loss + alpha * loc_loss) / tf.maximum(1.0, n_positive)
+        # Keras divides the loss by the batch size but the relevant criterion to average our loss over is the number of positive boxes in the batch
+        # not the batch size. So in order to revert Keras' averaging over the batch size, multiply by batch_size
+        total_loss = total_loss * tf.to_float(batch_size)
+        return total_loss
+
+
+
+
 def build_model(image_size,
                 n_classes,
                 l2_regularization=0.0,
                 min_scale=0.2,
                 max_scale=0.9,
-                aspect_ratios=[1,2,3,0.5,0.33],
+                aspect_ratios=[1, 2, 3, 0.5, 0.33],
                 normalize_coords=False,
                 subtract_mean=None,
                 divide_by_stddev=None):
@@ -282,23 +436,22 @@ def build_model(image_size,
     two_boxes_for_ar1 = True
     coords = 'centroids'
     variances = [1.0, 1.0, 1.0, 1.0]
-    n_predictor_layers = 6 # The number of predictor conv layers in the network
-    n_classes += 1 # Account for the background class.
-    l2_reg = l2_regularization # Make the internal name shorter.
+    n_predictor_layers = 6  # The number of predictor conv layers in the network
+    n_classes += 1  # Account for the background class.
+    l2_reg = l2_regularization  # Make the internal name shorter.
     img_height, img_width, img_channels = image_size[0], image_size[1], image_size[2]
-    clip_boxes=False
+    clip_boxes = False
 
     ############################################################################
     # Get a few exceptions out of the way.
     ############################################################################
 
-    if aspect_ratios is None :
+    if aspect_ratios is None:
         raise ValueError("`aspect_ratios' cannot both be None. ")
     if (min_scale is None or max_scale is None):
         raise ValueError("`min_scale` and `max_scale` need to be specified.")
     scales = np.linspace(min_scale, max_scale, n_predictor_layers + 1)
     variances = np.array(variances)
-
 
     ############################################################################
     # Compute the anchor box parameters.
@@ -421,29 +574,29 @@ def build_model(image_size,
     # The following identity layer is only needed so that the subsequent lambda layers can be optional.
     x = Lambda(identity_layer, output_shape=(img_height, img_width, img_channels), name='identity_layer')(Xin)
     if not (subtract_mean is None):
-        x = Lambda(input_mean_normalization, output_shape=(img_height, img_width, img_channels), name='input_mean_normalization')(x)
+        x = Lambda(input_mean_normalization, output_shape=(img_height, img_width, img_channels),
+                   name='input_mean_normalization')(x)
     if not (divide_by_stddev is None):
-        x = Lambda(input_stddev_normalization, output_shape=(img_height, img_width, img_channels), name='input_stddev_normalization')(x)
-
+        x = Lambda(input_stddev_normalization, output_shape=(img_height, img_width, img_channels),
+                   name='input_stddev_normalization')(x)
 
     x = _conv_block(x, 32, (3, 3), strides=(2, 2))
 
-    x = _inverted_residual_block(x, 16, (3, 3), t=1,  strides=1, n=1)
-    x = _inverted_residual_block(x, 24, (3, 3), t=6,  strides=2, n=2)
-    x = _inverted_residual_block(x, 32, (3, 3), t=6,  strides=2, n=3)
+    x = _inverted_residual_block(x, 16, (3, 3), t=1, strides=1, n=1)
+    x = _inverted_residual_block(x, 24, (3, 3), t=6, strides=2, n=2)
+    x = _inverted_residual_block(x, 32, (3, 3), t=6, strides=2, n=3)
     conv1 = x
-    x = _inverted_residual_block(x, 64, (3, 3), t=6,  strides=2, n=4)
-    x = _inverted_residual_block(x, 96, (3, 3), t=6,  strides=1, n=3)
+    x = _inverted_residual_block(x, 64, (3, 3), t=6, strides=2, n=4)
+    x = _inverted_residual_block(x, 96, (3, 3), t=6, strides=1, n=3)
     conv2 = x
-    x = _inverted_residual_block(x, 160, (3, 3), t=6,  strides=2, n=3)
-    x = _inverted_residual_block(x, 320, (3, 3), t=6,  strides=1, n=1)
+    x = _inverted_residual_block(x, 160, (3, 3), t=6, strides=2, n=3)
+    x = _inverted_residual_block(x, 320, (3, 3), t=6, strides=1, n=1)
 
     conv3 = x
 
-    conv4 = _inverted_residual_block(conv3, 480, (3, 3), t=6,  strides=2, n=2)
-    conv5 = _inverted_residual_block(conv4, 640, (3, 3), t=6,  strides=2, n=2)
-    conv6 = _inverted_residual_block(conv5, 800, (3, 3), t=6,  strides=2, n=2)
-
+    conv4 = _inverted_residual_block(conv3, 480, (3, 3), t=6, strides=2, n=2)
+    conv5 = _inverted_residual_block(conv4, 640, (3, 3), t=6, strides=2, n=2)
+    conv6 = _inverted_residual_block(conv5, 800, (3, 3), t=6, strides=2, n=2)
 
     # The next part is to add the convolutional predictor layers on top of the base network
     # that we defined above. Note that I use the term "base network" differently than the paper does.
@@ -457,44 +610,67 @@ def build_model(image_size,
     # We precidt `n_classes` confidence values for each box, hence the `classes` predictors have depth `n_boxes * n_classes`
     # We predict 4 box coordinates for each box, hence the `boxes` predictors have depth `n_boxes * 4`
     # Output shape of `classes`: `(batch, height, width, n_boxes * n_classes)`
-    classes1 = Conv2D(n_boxes[0] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='classes1')(conv1)
-    classes2 = Conv2D(n_boxes[1] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='classes2')(conv2)
-    classes3 = Conv2D(n_boxes[2] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='classes3')(conv3)
-    classes4 = Conv2D(n_boxes[3] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='classes4')(conv4)
-    classes5 = Conv2D(n_boxes[4] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='classes5')(conv5)
-    classes6 = Conv2D(n_boxes[5] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='classes6')(conv6)
+    classes1 = Conv2D(n_boxes[0] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                      kernel_regularizer=l2(l2_reg), name='classes1')(conv1)
+    classes2 = Conv2D(n_boxes[1] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                      kernel_regularizer=l2(l2_reg), name='classes2')(conv2)
+    classes3 = Conv2D(n_boxes[2] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                      kernel_regularizer=l2(l2_reg), name='classes3')(conv3)
+    classes4 = Conv2D(n_boxes[3] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                      kernel_regularizer=l2(l2_reg), name='classes4')(conv4)
+    classes5 = Conv2D(n_boxes[4] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                      kernel_regularizer=l2(l2_reg), name='classes5')(conv5)
+    classes6 = Conv2D(n_boxes[5] * n_classes, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                      kernel_regularizer=l2(l2_reg), name='classes6')(conv6)
 
     # Output shape of `boxes`: `(batch, height, width, n_boxes * 4)`
-    boxes1 = Conv2D(n_boxes[0] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='boxes1')(conv1)
-    boxes2 = Conv2D(n_boxes[1] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='boxes2')(conv2)
-    boxes3 = Conv2D(n_boxes[2] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='boxes3')(conv3)
-    boxes4 = Conv2D(n_boxes[3] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='boxes4')(conv4)
-    boxes5 = Conv2D(n_boxes[4] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='boxes5')(conv5)
-    boxes6 = Conv2D(n_boxes[5] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='boxes6')(conv6)
-
+    boxes1 = Conv2D(n_boxes[0] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                    kernel_regularizer=l2(l2_reg), name='boxes1')(conv1)
+    boxes2 = Conv2D(n_boxes[1] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                    kernel_regularizer=l2(l2_reg), name='boxes2')(conv2)
+    boxes3 = Conv2D(n_boxes[2] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                    kernel_regularizer=l2(l2_reg), name='boxes3')(conv3)
+    boxes4 = Conv2D(n_boxes[3] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                    kernel_regularizer=l2(l2_reg), name='boxes4')(conv4)
+    boxes5 = Conv2D(n_boxes[4] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                    kernel_regularizer=l2(l2_reg), name='boxes5')(conv5)
+    boxes6 = Conv2D(n_boxes[5] * 4, (3, 3), strides=(1, 1), padding="same", kernel_initializer='he_normal',
+                    kernel_regularizer=l2(l2_reg), name='boxes6')(conv6)
 
     # Generate the anchor boxes
     # Output shape of `anchors`: `(batch, height, width, n_boxes, 8)`
     print(conv1.shape)
     print(boxes1.shape)
-    anchors1 = AnchorBoxes(img_height, img_width, this_scale=scales[0], next_scale=scales[1], aspect_ratios=aspect_ratios[0],
+    anchors1 = AnchorBoxes(img_height, img_width, this_scale=scales[0], next_scale=scales[1],
+                           aspect_ratios=aspect_ratios[0],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords, name='anchors1')(boxes1)
-    anchors2 = AnchorBoxes(img_height, img_width, this_scale=scales[1], next_scale=scales[2], aspect_ratios=aspect_ratios[1],
+                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                           name='anchors1')(boxes1)
+    anchors2 = AnchorBoxes(img_height, img_width, this_scale=scales[1], next_scale=scales[2],
+                           aspect_ratios=aspect_ratios[1],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords, name='anchors2')(boxes2)
-    anchors3 = AnchorBoxes(img_height, img_width, this_scale=scales[2], next_scale=scales[3], aspect_ratios=aspect_ratios[2],
+                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                           name='anchors2')(boxes2)
+    anchors3 = AnchorBoxes(img_height, img_width, this_scale=scales[2], next_scale=scales[3],
+                           aspect_ratios=aspect_ratios[2],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords, name='anchors3')(boxes3)
-    anchors4 = AnchorBoxes(img_height, img_width, this_scale=scales[3], next_scale=scales[4], aspect_ratios=aspect_ratios[3],
+                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                           name='anchors3')(boxes3)
+    anchors4 = AnchorBoxes(img_height, img_width, this_scale=scales[3], next_scale=scales[4],
+                           aspect_ratios=aspect_ratios[3],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords, name='anchors4')(boxes4)
-    anchors5 = AnchorBoxes(img_height, img_width, this_scale=scales[4], next_scale=scales[5], aspect_ratios=aspect_ratios[4],
+                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                           name='anchors4')(boxes4)
+    anchors5 = AnchorBoxes(img_height, img_width, this_scale=scales[4], next_scale=scales[5],
+                           aspect_ratios=aspect_ratios[4],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords, name='anchors5')(boxes5)
-    anchors6 = AnchorBoxes(img_height, img_width, this_scale=scales[5], next_scale=scales[6], aspect_ratios=aspect_ratios[5],
+                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                           name='anchors5')(boxes5)
+    anchors6 = AnchorBoxes(img_height, img_width, this_scale=scales[5], next_scale=scales[6],
+                           aspect_ratios=aspect_ratios[5],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords, name='anchors6')(boxes6)
+                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                           name='anchors6')(boxes6)
 
     # Reshape the class predictions, yielding 3D tensors of shape `(batch, height * width * n_boxes, n_classes)`
     # We want the classes isolated in the last axis to perform softmax on them
@@ -555,11 +731,259 @@ def build_model(image_size,
     # Output shape of `predictions`: (batch, n_boxes_total, n_classes + 4 + 8)
     predictions = Concatenate(axis=2, name='predictions')([classes_softmax, boxes_concat, anchors_concat])
 
-
     model = Model(inputs=Xin, outputs=predictions)
-
 
     return model
 
 
+def read_csv(filename):
+    """Read CSV
+    This function reads CSV File and returns a list
+    # Arguments
+        inputs: CSV file directory as string
+    # Returns
+        List of values [Img Filename, Img width, Img height, Img Chn, xmin, xmax, ymin, ymax, label]
+    """
+    with open(filename, 'r') as f:
+        reader = csv.reader(f)
+        data = list(reader)
+    return data
 
+
+def xml_to_csv(xml_directory):
+    """xml to csv file converter
+    converts all xml files into a single csv in same directory
+    input:
+            xml_directory (string) : directory of xml files for image labels
+    returns:
+            labels.csv at xml directory provided
+            file_location(string)
+
+    """
+    xml = glob.glob(xml_directory)
+    image_dict = []
+    for image in xml:
+        root = ET.parse(image).getroot()
+        img_name = root.find('filename').text
+
+        for sz in root.iter('size'):
+            img_w = sz.find('width').text
+            img_h = sz.find('height').text
+            img_d = sz.find('depth').text
+
+        for obj in root.iter('object'):
+            for coordinate in obj.iter('bndbox'):
+                x_min = coordinate.find('xmin').text
+                y_min = coordinate.find('ymin').text
+                x_max = coordinate.find('xmax').text
+                y_max = coordinate.find('ymax').text
+                label = obj.find('name').text
+                image_dict.append([img_name, img_w, img_h, img_d, x_min, x_max, y_min, y_max, label])
+
+    with open("labels.csv", "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(xml_directory)
+
+    print("Successfully created labels.csv file at xml directory.")
+    file_location = xml_directory + "/label.csv"
+    return file_location
+
+
+def image_augmentation(data_csv, img_dir, filename, img_sz=300, translate=0, rotate=0, scale=0, shear=0, hor_flip=False,
+                       ver_flip=False):
+    """Image Augmentation
+    This function checks for multiple classes/bounding box in an image, resizes and augments images and
+    returns augmented images and bounding box co-ordinates
+    # Arguments
+        inputs: data_csv (List)=  [Img Filename, Img width, Img height, Img Chn, xmin, xmax, ymin, ymax, label]
+                img_dir  (Str)= Root directory of images
+                filename (Str)= filename of image
+                img_sz (int)= dimensions to be resized
+                        (eg. 300 if image is (300,300))
+                translate (float)= percentage to translate image
+                            (eg. 0.2, x and y will randomly translate from -20% to 20%)
+                rotate (int)= angle to rotate image (0-45)
+                scale (int)= factor to scale image values (0-5)
+                        (eg. 5 will randomly scale image from 1/5 to 5)
+                shear (int)= shear angle of image (0-45)
+                hor_flip (bool)= True to allow generator to randomly flip images horizontally
+                ver_flip (bool) = True to allow generator to randomly flip images vertically
+
+    #Returns
+        image_aug : augmented image
+        bbs_aug   : augmented bounding box coordinates
+    """
+    bounding_boxes = []
+    img = cv2.imread(img_dir + filename)
+
+    # sets variable for 90deg rotation
+    if hor_flip is True and ver_flip is True:
+        flip = (0, 4)
+    elif hor_flip is True and ver_flip is False:
+        flip = [0, 1, 3]
+    elif hor_flip is False and ver_flip is True:
+        flip = [4]
+    else:
+        flip = 0
+    # collect bounding boxes on the same image
+    indexes = [j for j, x in enumerate(data_csv) if filename in x]
+
+    for j in indexes:
+        # create bounding boxes and append them into a single list
+        bounding_box = BoundingBox(x1=int(data_csv[j][4]),
+                                   y1=int(data_csv[j][6]),
+                                   x2=int(data_csv[j][5]),
+                                   y2=int(data_csv[j][7]))
+        bounding_boxes.append(bounding_box)
+
+    bbs = BoundingBoxesOnImage(bounding_boxes, shape=img.shape)
+
+    seq = iaa.Sequential([
+        iaa.Resize({"height": img_sz, "width": img_sz}),
+        iaa.Rot90(flip),
+        iaa.Affine(
+            translate_percent={"x": random.randint(-translate, translate), "y": random.randint(-translate, translate)},
+            rotate=random.randint(-rotate, rotate),
+            scale=(0, random.uniform(1 / scale, scale)),
+            shear=(0, random.randint(0, shear))
+        )
+    ])
+    # Augment BBs and images.
+    image_aug, bbs_aug = seq(image=img, bounding_boxes=bbs)
+    image_aug /= 255
+    bbs_aug = bbs_aug.remove_out_of_image().clip_out_of_image()
+
+    return image_aug, bbs_aug
+
+
+def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, img_sz=300, translate=0, rotate=0,
+                          scale=0, shear=0, hor_flip=False, ver_flip=False):
+    """Batch Generator for Training Images
+    Generator which returns batches of numpy array consisting of 2 numpy arrays for training
+
+    # Arguments
+        inputs: img_dir = Root directory of images
+                csv_data = List [Img Filename, Img width, Img height, Img Chn, xmin, xmax, ymin, ymax, label]
+                steps_per_epoch = takes either batch_size or steps_per_epoch
+                batch_size = takes either steps_per_epoch or batch_size
+                img_sz (int)= dimensions to be resized
+                        (eg. 300 if image is (300,300))
+                translate (float)= percentage to translate image
+                            (eg. 0.2, x and y will randomly translate from -20% to 20%)
+                rotate (int)= angle to rotate image (0-45)
+                scale (int)= factor to scale image values (0-5)
+                        (eg. 5 will randomly scale image from 1/5 to 5)
+                shear (int)= shear angle of image (0-45)
+                hor_flip (bool)= True to allow generator to randomly flip images horizontally
+                ver_flip (bool) = True to allow generator to randomly flip images vertically
+    #Returns
+        x=[batch,h,w,c] and y=[batch,n_boxes,no_of_classes,12]
+    """
+    batch_data = []
+    list_of_img = []
+    # get the full list of images
+    images = list(set([csv_data[i][0] for i in range(len(csv_data))]))
+    # organise images into batches
+    for i in range(steps_per_epoch + 1):
+        if i == steps_per_epoch:
+            start = i * batch_size
+            end = len(images)
+            batch_data = images[start:end]
+        else:
+            start = i * batch_size
+            end = i * batch_size + batch_size
+            batch_data = images[start:end]
+
+        for j in batch_data:
+            # do image augmentation and returns augmented image and bounding boxes
+            image_aug, bbs_aug = image_augmentation(csv_data,
+                                                    img_dir,
+                                                    j,
+                                                    img_sz=img_sz,
+                                                    translate=translate,
+                                                    rotate=rotate,
+                                                    scale=scale,
+                                                    shear=shear,
+                                                    hor_flip=hor_flip,
+                                                    ver_flip=ver_flip)
+            list_of_img.append(image_aug)
+
+        # convert batch of inputs and ground truth into numpy array
+        X = np.asarray(list_of_img)
+
+        yield X  # , y
+        # clear list after completion
+        X = []
+        list_of_img = []
+        # y = []
+
+
+def data_generator(img_dir, xml_dir, batch_size=None, steps_per_epoch=None, img_sz=300,
+                   translate=0, rotate=0, scale=0, shear=0, hor_flip=False, ver_flip=False):
+    """Data Generator
+    Generate batches of tensor image data with real-time data augmentation. The data will be looped over (in batches).
+    :param img_dir(string): image directory
+    :param xml_dir(string): xml directory
+    :param batch_size(int):
+    :param steps_per_epoch(int):
+    :param img_sz(int):dimensions to be resized(eg. 300 if image is (300,300))
+    :param translate(int): percentage to translate image (eg. 0.2, x and y will randomly translate from -20% to 20%)
+    :param rotate(int):angle to rotate image (0-45)
+    :param scale(int):factor to scale image values (0-5) (eg. 5 will randomly scale image from 1/5 to 5)
+    :param shear(int): shear angle of image (0-45)
+    :param hor_flip(bool): True to allow generator to randomly flip images horizontally
+    :param ver_flip(bool): True to allow generator to randomly flip images vertically
+    :return: 3 generators for training, validation and testing
+    """
+    # Exceptions
+    # filename check
+
+    # User must input either batch_size or steps_per_epoch
+    if batch_size is None and steps_per_epoch is None:
+        raise ValueError("'batch_size' or `steps_per_epoch` have not been set yet. You need to pass them as arguments.")
+    if batch_size is not None and steps_per_epoch is not None:
+        raise ValueError("'batch_size' and `steps_per_epoch` has been set. You can only pass either one arguments.")
+    # Converts directory xml files to CSV and stores in same directory
+    csv_path = xml_to_csv(xml_dir)
+    # Read CSV File
+    data_csv = read_csv(csv_path)
+
+    # Split data into 3 parts
+    train_data = splitted_data_csv_train
+    valid_data = splitted_data_csv_valid
+    test_data = splitted_data_csv_test
+
+    # Calculate batch_size and steps_per_epoch
+    if batch_size is not None and steps_per_epoch is None:
+        steps_per_epoch = int((len(data_csv) + 1) / batch_size)
+    if batch_size is None and steps_per_epoch is not None:
+        batch_size = int((len(data_csv) + 1) / steps_per_epoch)
+
+    # Creates 3 generators for train validation and test, image augmentation only done for training set
+    train_batch_gen = image_batch_generator(img_dir,
+                                            splitted_data_csv_train,
+                                            steps_per_epoch,
+                                            batch_size,
+                                            img_sz=img_sz,
+                                            translate=translate,
+                                            rotate=rotate,
+                                            scale=scale,
+                                            shear=shear,
+                                            hor_flip=hor_flip,
+                                            ver_flip=ver_flip)
+
+    valid_batch_gen = image_batch_generator(img_dir,
+                                            splitted_data_csv_valid,
+                                            steps_per_epoch,
+                                            batch_size,
+                                            img_sz=img_sz
+                                            )
+
+    test_batch_gen = image_batch_generator(img_dir,
+                                           splitted_data_csv_test,
+                                           steps_per_epoch,
+                                           batch_size,
+                                           img_sz=img_sz
+                                           )
+
+    return train_batch_gen, valid_batch_gen, test_batch_gen
