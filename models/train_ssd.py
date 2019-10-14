@@ -248,9 +248,62 @@ history = model.fit_generator(generator=train_generator,
                               validation_steps=ceil(val_dataset_size/batch_size),
                               initial_epoch=initial_epoch)
 
-#%% Block 6: Training
+#%% Block 7: Predictions
 
-ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0)
-model.compile(optimizer=adam, loss=ssd_loss.compute_loss)
-model.summary()
+predict_generator = val_dataset.generate(batch_size=1,
+                                         shuffle=True,
+                                         transformations=[convert_to_3_channels,
+                                                          resize],
+                                         label_encoder=None,
+                                         returns={'processed_images',
+                                                  'filenames',
+                                                  'inverse_transform',
+                                                  'original_images',
+                                                  'original_labels'},
+                                         keep_images_without_gt=False)
 
+y_pred = model.predict(batch_images)
+
+#%% Block 8: Decoding Predictions
+y_pred_decoded = decode_detections(y_pred,
+                                   confidence_thresh=0.5,
+                                   iou_threshold=0.4,
+                                   top_k=200,
+                                   normalize_coords=normalize_coords,
+                                   img_height=img_height,
+                                   img_width=img_width)
+
+y_pred_decoded_inv = apply_inverse_transforms(y_pred_decoded, batch_inverse_transforms)
+
+np.set_printoptions(precision=2, suppress=True, linewidth=90)
+print("Predicted boxes:\n")
+print('   class   conf xmin   ymin   xmax   ymax')
+print(y_pred_decoded_inv[i])
+
+
+
+
+#%% Block 9: Plotting Predictions
+# Set the colors for the bounding boxes
+colors = plt.cm.hsv(np.linspace(0, 1, n_classes+1)).tolist()
+classes = ['background',
+           'aeroplane', 'bicycle', 'bird', 'boat',
+           'bottle', 'bus', 'car', 'cat',
+           'chair', 'cow', 'diningtable', 'dog',
+           'horse', 'motorbike', 'person', 'pottedplant',
+           'sheep', 'sofa', 'train', 'tvmonitor']
+
+plt.figure(figsize=(20,12))
+plt.imshow(batch_original_images[i])
+
+current_axis = plt.gca()
+
+for box in y_pred_decoded_inv[i]:
+    xmin = box[2]
+    ymin = box[3]
+    xmax = box[4]
+    ymax = box[5]
+    color = colors[int(box[0])]
+    label = '{}: {:.2f}'.format(classes[int(box[0])], box[1])
+    current_axis.add_patch(plt.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, color=color, fill=False, linewidth=2))  
+    current_axis.text(xmin, ymin, label, size='x-large', color='white', bbox={'facecolor':color, 'alpha':1.0})
