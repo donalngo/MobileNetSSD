@@ -3,7 +3,6 @@ from keras_ssd import build_model
 from keras_ssd import SSDLoss
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import losses
-from keras_loss_function.keras_ssd_loss import SSDLoss
 
 
 model = build_model((300,300,3),
@@ -22,8 +21,8 @@ model = build_model((300,300,3),
 
 adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 
-ssd_loss = compute_loss()
-model.compile(optimizer=adam, loss=ssd_loss)
+#ssd_loss = SSDLoss.compute_loss()
+model.compile(optimizer=adam, loss=SSDLoss.compute_loss)
 
 model.summary()
 
