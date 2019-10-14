@@ -3,7 +3,7 @@ from keras_ssd import build_model
 from keras_ssd import SSDLoss
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import losses
-
+from keras_ssd import datagen
 
 model = build_model((300,300,3),
                 3,
@@ -21,9 +21,9 @@ model = build_model((300,300,3),
 
 adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 
-#ssd_loss = SSDLoss.compute_loss()
-model.compile(optimizer=adam, loss=SSDLoss.compute_loss)
 
+ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0)
+model.compile(optimizer=adam, loss=ssd_loss.compute_loss)
 model.summary()
 
 
@@ -42,21 +42,14 @@ model.summary()
 #%% Block 3: 
 
 # Directories
-train_image_dir     = '../../datasets/VOCdevkit/VOC2007/JPEGImages/'
-train_csv_dir      = '../../datasets/VOCdevkit/VOC2012/JPEGImages/'
-
-val_image_dir     = '../../datasets/VOCdevkit/VOC2007/JPEGImages/'
-val_csv_dir      = '../../datasets/VOCdevkit/VOC2012/JPEGImages/'
-
-# Calling CSV Parser
-parse_csv_train()
-parse_csv_val()
+train_image_dir     = '/img_train/'
 
 
+label_encoder = SSDInputEncoder
 
-
-train_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
-val_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
+train_dataset = datagen.data_generator(img_dir = train_image_dir, xml_dir = train_image_dir, batch_size=10, steps_per_epoch=None, img_sz=300, label_encoder=label_encoder,
+                       translate=0, rotate=0, scale=0, shear=0, hor_flip=True, ver_flip=False)
+#val_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
 
 # 2: Parse the image and label lists for the training and validation datasets. This can take a while.
 
