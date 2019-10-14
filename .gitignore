@@ -4,6 +4,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .idea/
+models/MnF/
 
 # User-specific stuff
 .idea/**/workspace.xml
@@ -25,7 +26,6 @@ __pycache__/
 .idea/**/dbnavigator.xml
 
 .idea
-test
 # C extensions
 *.so
 

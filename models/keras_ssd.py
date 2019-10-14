@@ -964,7 +964,7 @@ class SSDInputEncoder:
         variances = [1.0, 1.0, 1.0, 1.0]
         two_boxes_for_ar1=True,
         predictor_sizes = np.array(predictor_sizes)
-        coords='centroids',
+        coords='centroids'
         clip_boxes=False
         if predictor_sizes.ndim == 1:
             predictor_sizes = np.expand_dims(predictor_sizes, axis=0)
@@ -1006,7 +1006,7 @@ class SSDInputEncoder:
 
         # Iterate over all predictor layers and compute the anchor boxes (feature_map_height, feature_map_width, n_boxes, 4) for each one.
         for i in range(len(self.predictor_sizes)):
-            boxes, center, wh, step, offset = self.generate_anchor_boxes_for_layer(feature_map_size=self.predictor_sizes[i],
+            boxes = self.generate_anchor_boxes_for_layer(feature_map_size=self.predictor_sizes[i],
                                                                                    aspect_ratios=self.aspect_ratios[i],
                                                                                    this_scale=self.scales[i],
                                                                                    next_scale=self.scales[i+1])
@@ -2111,7 +2111,7 @@ def xml_to_csv(xml_directory):
             file_location(string)
 
     """
-    xml = glob.glob(xml_directory)
+    xml = glob.glob(xml_directory+"*.xml")
     image_dict = []
     for image in xml:
         root = ET.parse(image).getroot()
@@ -2133,14 +2133,14 @@ def xml_to_csv(xml_directory):
 
     with open("labels.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerows(xml_directory)
+        writer.writerows(image_dict)
 
     print("Successfully created labels.csv file at xml directory.")
-    file_location = xml_directory + "/label.csv"
+    file_location = "label.csv"
     return file_location
 
 
-def image_augmentation(data_csv, img_dir, filename, img_sz=300, translate=0, rotate=0, scale=0, shear=0, hor_flip=False,
+def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=300, translate=0, rotate=0, scale=1, shear=0, hor_flip=False,
                        ver_flip=False):
     """Image Augmentation
     This function checks for multiple classes/bounding box in an image, resizes and augments images and
@@ -2165,7 +2165,8 @@ def image_augmentation(data_csv, img_dir, filename, img_sz=300, translate=0, rot
         bbs_aug   : augmented bounding box coordinates
     """
     bounding_boxes = []
-    classes = []
+    clsses = []
+    labels = []
     img = cv2.imread(img_dir + filename)
 
     # sets variable for 90deg rotation
@@ -2177,18 +2178,19 @@ def image_augmentation(data_csv, img_dir, filename, img_sz=300, translate=0, rot
         flip = [4]
     else:
         flip = 0
-    # collect bounding boxes on the same image
-    indexes = [j for j, x in enumerate(data_csv) if filename in x]
 
-    for j in indexes:
-        # create bounding boxes and append them into a single list
-        bounding_box = BoundingBox(x1=int(data_csv[j][4]),
-                                   y1=int(data_csv[j][6]),
-                                   x2=int(data_csv[j][5]),
-                                   y2=int(data_csv[j][7]))
-        classes.append(int(data_csv[j][8]))
-        bounding_boxes.append(bounding_box)
-    
+    if data_csv is not None and img_dir is not None:
+        # collect bounding boxes on the same image
+        indexes = [j for j, x in enumerate(data_csv) if filename in x]
+
+        for j in indexes:
+            # create bounding boxes and append them into a single list
+            bounding_box = BoundingBox(x1=int(data_csv[j][4]),
+                                       y1=int(data_csv[j][6]),
+                                       x2=int(data_csv[j][5]),
+                                       y2=int(data_csv[j][7]))
+            clsses.append(int(data_csv[j][8]))
+            bounding_boxes.append(bounding_box)
 
     bbs = BoundingBoxesOnImage(bounding_boxes, shape=img.shape)
 
@@ -2196,21 +2198,29 @@ def image_augmentation(data_csv, img_dir, filename, img_sz=300, translate=0, rot
         iaa.Resize({"height": img_sz, "width": img_sz}),
         iaa.Rot90(flip),
         iaa.Affine(
-            translate_percent={"x": random.randint(-translate, translate), "y": random.randint(-translate, translate)},
-            rotate=random.randint(-rotate, rotate),
-            scale=(0, random.uniform(1 / scale, scale)),
-            shear=(0, random.randint(0, shear))
+            translate_percent={"x": (-translate, translate), "y": (-translate, translate)},
+            rotate=(-rotate, rotate),
+            scale=(1/scale, scale),
+            shear=(-shear, shear)
         )
     ])
     # Augment BBs and images.
     image_aug, bbs_aug = seq(image=img, bounding_boxes=bbs)
-    image_aug /= 255
+    image_aug = image_aug/255
     bbs_aug = bbs_aug.remove_out_of_image().clip_out_of_image()
 
-    return image_aug, bbs_aug, classes
+    for i in range(len(bbs_aug.bounding_boxes)):
+        boxes = bbs_aug.bounding_boxes[i]
+        cls = clsses[i]
+        labels.append([cls, boxes.x1, boxes.y1, boxes.x2, boxes.y2])
+
+    y = np.asarray(labels)
 
 
-def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, img_sz=300, translate=0, rotate=0, label_encoder
+    return image_aug, y
+
+
+def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_encoder, img_sz=300, translate=0, rotate=0,
                           scale=0, shear=0, hor_flip=False, ver_flip=False):
     """Batch Generator for Training Images
     Generator which returns batches of numpy array consisting of 2 numpy arrays for training
@@ -2234,7 +2244,6 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, img_sz
         x=[batch,h,w,c] and y=[batch,n_boxes,no_of_classes,12]
     """
     batch_data = []
-    list_of_img = []
     # get the full list of images
     images = list(set([csv_data[i][0] for i in range(len(csv_data))]))
     # organise images into batches
@@ -2247,41 +2256,33 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, img_sz
             start = i * batch_size
             end = i * batch_size + batch_size
             batch_data = images[start:end]
-''' 
-       Arguments:
-            ground_truth_labels (list): A python list of length `batch_size` that contains one 2D Numpy array
-                for each batch image. Each such array has `k` rows for the `k` ground truth bounding boxes belonging
-                to the respective image, and the data for each ground truth bounding box has the format
-                `(class_id, xmin, ymin, xmax, ymax)` (i.e. the 'corners' coordinate format), and `class_id` must be
-                an integer greater than 0 for all boxes as class ID 0 is reserved for the background class.
-'''
+        X = []
+        Y = []
         for j in batch_data:
             # do image augmentation and returns augmented image and bounding boxes
-            image_aug, bbs_aug, classes = image_augmentation(csv_data,
-                                                    img_dir,
-                                                    j,
-                                                    img_sz=img_sz,
-                                                    translate=translate,
-                                                    rotate=rotate,
-                                                    scale=scale,
-                                                    shear=shear,
-                                                    hor_flip=hor_flip,
-                                                    ver_flip=ver_flip)
-            list_of_img.append(image_aug)
-            bbs.bounding_boxes
-        # convert batch of inputs and ground truth into numpy array
-        X = np.asarray(list_of_img)
-        
-        ssdencoder = label_encoder(classes)
+            x_image, y_boxes = image_augmentation(j,
+                                            csv_data,
+                                            img_dir,
+                                            img_sz=img_sz,
+                                            translate=translate,
+                                            rotate=rotate,
+                                            scale=scale,
+                                            shear=shear,
+                                            hor_flip=hor_flip,
+                                            ver_flip=ver_flip)
+            X.append(x_image)
+            Y.append(y_boxes)
+        X = np.array(X)
+        Y = label_encoder(Y)
 
-        yield X  # , y
+        yield X, Y
         # clear list after completion
         X = []
-        list_of_img = []
-        # y = []
+        y_boxes = []
+        Y = []
 
 class datagen:
-    def data_generator(img_dir, xml_dir, batch_size=None, steps_per_epoch=None, img_sz=300, label_encoder,
+    def data_generator(img_dir, xml_dir, label_encoder, batch_size=None, steps_per_epoch=None, img_sz=300,
                        translate=0, rotate=0, scale=0, shear=0, hor_flip=False, ver_flip=False):
         """Data Generator
         Generate batches of tensor image data with real-time data augmentation. The data will be looped over (in batches).
@@ -2309,45 +2310,46 @@ class datagen:
         # Converts directory xml files to CSV and stores in same directory
         csv_path = xml_to_csv(xml_dir)
         # Read CSV File
-        data_csv = read_csv(csv_path)
+        data_csv = read_csv("labels.csv")
     
         # Split data into 3 parts
-        train_data = splitted_data_csv_train
-        valid_data = splitted_data_csv_valid
-        test_data = splitted_data_csv_test
+        # train_data = splitted_data_csv_train
+        # valid_data = splitted_data_csv_valid
+        # test_data = splitted_data_csv_test
     
         # Calculate batch_size and steps_per_epoch
         if batch_size is not None and steps_per_epoch is None:
             steps_per_epoch = int((len(data_csv) + 1) / batch_size)
         if batch_size is None and steps_per_epoch is not None:
             batch_size = int((len(data_csv) + 1) / steps_per_epoch)
-    
+
+
         # Creates 3 generators for train validation and test, image augmentation only done for training set
         train_batch_gen = image_batch_generator(img_dir,
-                                                xml_dir,
+                                                data_csv,
                                                 steps_per_epoch,
                                                 batch_size,
+                                                label_encoder=label_encoder,
                                                 img_sz=img_sz,
                                                 translate=translate,
                                                 rotate=rotate,
-                                                label_encoder=label_encoder,
                                                 scale=scale,
                                                 shear=shear,
                                                 hor_flip=hor_flip,
                                                 ver_flip=ver_flip)
     
-        valid_batch_gen = image_batch_generator(img_dir,
-                                                splitted_data_csv_valid,
-                                                steps_per_epoch,
-                                                batch_size,
-                                                img_sz=img_sz
-                                                )
-    
-        test_batch_gen = image_batch_generator(img_dir,
-                                               splitted_data_csv_test,
-                                               steps_per_epoch,
-                                               batch_size,
-                                               img_sz=img_sz
-                                               )
+        # valid_batch_gen = image_batch_generator(img_dir,
+        #                                         splitted_data_csv_valid,
+        #                                         steps_per_epoch,
+        #                                         batch_size,
+        #                                         img_sz=img_sz
+        #                                         )
+        #
+        # test_batch_gen = image_batch_generator(img_dir,
+        #                                        splitted_data_csv_test,
+        #                                        steps_per_epoch,
+        #                                        batch_size,
+        #                                        img_sz=img_sz
+        #                                        )
         #return train_batch_gen, valid_batch_gen, test_batch_gen   
         return train_batch_gen
