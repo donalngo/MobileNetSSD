@@ -5,6 +5,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import losses
 from keras_ssd import datagen
 
+
 model = build_model((300,300,3),
                 3,
                 l2_regularization=0.0,
@@ -54,6 +55,13 @@ predictor_sizes = [model.get_layer('classes1').output_shape[1:3],
                    model.get_layer('classes4').output_shape[1:3],
                    model.get_layer('classes5').output_shape[1:3],
                    model.get_layer('classes6').output_shape[1:3]]
+
+#aspect_ratios = [[1.0, 2.0, 0.5],
+#                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
+#                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
+#                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
+#                 [1.0, 2.0, 0.5],
+#                 [1.0, 2.0, 0.5]]
 
 
 label_encoder = SSDInputEncoder(img_height,
