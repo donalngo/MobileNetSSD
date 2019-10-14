@@ -7,7 +7,7 @@ from keras_loss_function.keras_ssd_loss import SSDLoss
 
 
 model = build_model((300,300,3),
-                10,
+                3,
                 l2_regularization=0.0,
                 min_scale=0.2,
                 max_scale=0.9,
@@ -22,7 +22,7 @@ model = build_model((300,300,3),
 
 adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 
-ssd_loss = compute_loss(neg_pos_ratio=3,n_neg_min=0,alpha=1.0)
+ssd_loss = compute_loss()
 model.compile(optimizer=adam, loss=ssd_loss)
 
 model.summary()
