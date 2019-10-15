@@ -1038,6 +1038,8 @@ class SSDInputEncoder:
         xmax = 3
         ymax = 4
         batch_size = len(ground_truth_labels)
+        if batch_size == 0:
+            print(ground_truth_labels)
         # Generate the template for y_encoded using the anchor boxes generated in constructor
         y_encoded = self.generate_encoding_template(batch_size=batch_size) # shape (batch_size, n_boxes, #classes + 12)
         y_encoded[:, :, self.background_id] = 1 # Initialize all boxes to background class
@@ -1403,7 +1405,7 @@ class AnchorBoxes(Layer):
 
         # We need the shape of the input tensor
 
-        batch_size, feature_map_channels, feature_map_height, feature_map_width = K.int_shape(x)
+        batch_size, feature_map_height, feature_map_width, feature_map_channels = K.int_shape(x)
 
         # Compute the grid of box center points. They are identical for all aspect ratios.
 
@@ -1809,9 +1811,8 @@ def build_model(image_size,
     ############################################################################
 
     # Set the aspect ratios for each predictor layer. These are only needed for the anchor box layers.
-
-    aspect_ratios = [aspect_ratios] * n_predictor_layers
     n_boxes = len(aspect_ratios) + 1
+    aspect_ratios = [aspect_ratios] * n_predictor_layers
     n_boxes = [n_boxes] * n_predictor_layers
 
     ############################################################################
@@ -2087,7 +2088,7 @@ def build_model(image_size,
     return model
 
 
-def read_csv(filename):
+def read_csv(xml_path,filename):
     """Read CSV
     This function reads CSV File and returns a list
     # Arguments
@@ -2095,7 +2096,7 @@ def read_csv(filename):
     # Returns
         List of values [Img Filename, Img width, Img height, Img Chn, xmin, xmax, ymin, ymax, label]
     """
-    with open(filename, 'r') as f:
+    with open(xml_path+filename, 'r') as f:
         reader = csv.reader(f)
         data = list(reader)
     return data
@@ -2131,7 +2132,7 @@ def xml_to_csv(xml_directory):
                 label = obj.find('name').text
                 image_dict.append([img_name, img_w, img_h, img_d, x_min, x_max, y_min, y_max, label])
 
-    with open("labels.csv", "w", newline="") as f:
+    with open(xml_directory+"labels.csv", "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerows(image_dict)
 
@@ -2246,16 +2247,20 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
     batch_data = []
     # get the full list of images
     images = list(set([csv_data[i][0] for i in range(len(csv_data))]))
+    cur_step = 0
     # organise images into batches
-    for i in range(steps_per_epoch + 1):
-        if i == steps_per_epoch:
-            start = i * batch_size
+    while True:
+
+        if cur_step == steps_per_epoch:
+            start = cur_step * batch_size
             end = len(images)
             batch_data = images[start:end]
+            cur_step += 1
         else:
-            start = i * batch_size
-            end = i * batch_size + batch_size
+            start = cur_step * batch_size
+            end = cur_step * batch_size + batch_size
             batch_data = images[start:end]
+            cur_step = 0
         X = []
         Y = []
         for j in batch_data:
@@ -2274,7 +2279,8 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
             Y.append(y_boxes)
         X = np.array(X)
         Y = label_encoder(Y)
-
+        if len(Y) == 0:
+            print(Y)
         yield X, Y
         # clear list after completion
         X = []
@@ -2310,7 +2316,7 @@ class datagen:
         # Converts directory xml files to CSV and stores in same directory
         csv_path = xml_to_csv(xml_dir)
         # Read CSV File
-        data_csv = read_csv("labels.csv")
+        data_csv = read_csv(xml_dir, "labels.csv")
     
         # Split data into 3 parts
         # train_data = splitted_data_csv_train
@@ -2323,8 +2329,9 @@ class datagen:
         if batch_size is None and steps_per_epoch is not None:
             batch_size = int((len(data_csv) + 1) / steps_per_epoch)
 
-
+        images = list(set([data_csv[i][0] for i in range(len(data_csv))]))
         # Creates 3 generators for train validation and test, image augmentation only done for training set
+
         train_batch_gen = image_batch_generator(img_dir,
                                                 data_csv,
                                                 steps_per_epoch,
@@ -2351,5 +2358,7 @@ class datagen:
         #                                        batch_size,
         #                                        img_sz=img_sz
         #                                        )
-        #return train_batch_gen, valid_batch_gen, test_batch_gen   
-        return train_batch_gen
+        #return train_batch_gen, valid_batch_gen, test_batch_gen
+        total_img = len(images)
+
+        return train_batch_gen, total_img
