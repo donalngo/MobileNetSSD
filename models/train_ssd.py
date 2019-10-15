@@ -11,14 +11,13 @@ from keras_ssd import SSDLoss
 from keras_ssd import datagen
 from keras_ssd import SSDInputEncoder
 
-
+aspect_ratios = [0.5, 1.0, 2.0]
 model = build_model((300,300,3),
                 2,
                 l2_regularization=0.0,
                 min_scale=0.2,
                 max_scale=0.9,
-                #aspect_ratios=[1,2,3,0.5,0.33],
-                aspect_ratios=[0.5, 1.0, 2.0],
+                aspect_ratios=aspect_ratios,
                 normalize_coords=False,
                 subtract_mean=None,
                 divide_by_stddev=None)
@@ -43,8 +42,8 @@ a = '/Teerapong/3. Github/1. NUS Masters/CA1 MobileNet SSD/MobileNetSSD/models/i
 
 # Directories
 #train_image_dir     = '/Teerapong/3. Github/1. NUS Masters/CA/MobileNetSSD/models/img_train/'
-train_image_dir     = '/Teerapong/3. Github/1. NUS Masters/CA1 MobileNet SSD/MobileNetSSD/models/img_train/'
-val_image_dir     = '/Teerapong/3. Github/1. NUS Masters/CA1 MobileNet SSD/MobileNetSSD/models/img_val/'
+train_image_dir     = 'img_train/'
+val_image_dir     = 'img_val/'
 
 img_height = 300
 img_width = 300
@@ -72,8 +71,7 @@ label_encoder = SSDInputEncoder(img_height,
                                 predictor_sizes,
                                 min_scale=0.1,
                                 max_scale=0.9,
-                                aspect_ratios=[0.5, 1.0, 2.0],
-                                #aspect_ratios=aspect_ratios,
+                                aspect_ratios=aspect_ratios,
                                 pos_iou_threshold=0.5,
                                 neg_iou_limit=0.3,
                                 border_pixels='half',
