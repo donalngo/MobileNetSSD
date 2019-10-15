@@ -9,7 +9,7 @@ from tensorflow.keras.applications import MobileNetV2
 from tensorflow.nn import relu6
 import tensorflow.keras.backend as K
 
-#from keras_layers.keras_layer_AnchorBoxes import AnchorBoxes
+# from keras_layers.keras_layer_AnchorBoxes import AnchorBoxes
 # from keras_layers.keras_layer_DecodeDetections import DecodeDetections
 # from keras_layers.keras_layer_DecodeDetectionsFast import DecodeDetectionsFast
 
@@ -21,8 +21,6 @@ import csv
 import random
 import xml.etree.ElementTree as ET
 import glob
-
-
 
 ########################################################
 ### Bounding Boxes Utilities
@@ -47,7 +45,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
-
 
 
 def convert_coordinates(tensor, start_index, conversion, border_pixels='half'):
@@ -88,32 +85,34 @@ def convert_coordinates(tensor, start_index, conversion, border_pixels='half'):
     ind = start_index
     tensor1 = np.copy(tensor).astype(np.float)
     if conversion == 'minmax2centroids':
-        tensor1[..., ind] = (tensor[..., ind] + tensor[..., ind+1]) / 2.0 # Set cx
-        tensor1[..., ind+1] = (tensor[..., ind+2] + tensor[..., ind+3]) / 2.0 # Set cy
-        tensor1[..., ind+2] = tensor[..., ind+1] - tensor[..., ind] + d # Set w
-        tensor1[..., ind+3] = tensor[..., ind+3] - tensor[..., ind+2] + d # Set h
+        tensor1[..., ind] = (tensor[..., ind] + tensor[..., ind + 1]) / 2.0  # Set cx
+        tensor1[..., ind + 1] = (tensor[..., ind + 2] + tensor[..., ind + 3]) / 2.0  # Set cy
+        tensor1[..., ind + 2] = tensor[..., ind + 1] - tensor[..., ind] + d  # Set w
+        tensor1[..., ind + 3] = tensor[..., ind + 3] - tensor[..., ind + 2] + d  # Set h
     elif conversion == 'centroids2minmax':
-        tensor1[..., ind] = tensor[..., ind] - tensor[..., ind+2] / 2.0 # Set xmin
-        tensor1[..., ind+1] = tensor[..., ind] + tensor[..., ind+2] / 2.0 # Set xmax
-        tensor1[..., ind+2] = tensor[..., ind+1] - tensor[..., ind+3] / 2.0 # Set ymin
-        tensor1[..., ind+3] = tensor[..., ind+1] + tensor[..., ind+3] / 2.0 # Set ymax
+        tensor1[..., ind] = tensor[..., ind] - tensor[..., ind + 2] / 2.0  # Set xmin
+        tensor1[..., ind + 1] = tensor[..., ind] + tensor[..., ind + 2] / 2.0  # Set xmax
+        tensor1[..., ind + 2] = tensor[..., ind + 1] - tensor[..., ind + 3] / 2.0  # Set ymin
+        tensor1[..., ind + 3] = tensor[..., ind + 1] + tensor[..., ind + 3] / 2.0  # Set ymax
     elif conversion == 'corners2centroids':
-        tensor1[..., ind] = (tensor[..., ind] + tensor[..., ind+2]) / 2.0 # Set cx
-        tensor1[..., ind+1] = (tensor[..., ind+1] + tensor[..., ind+3]) / 2.0 # Set cy
-        tensor1[..., ind+2] = tensor[..., ind+2] - tensor[..., ind] + d # Set w
-        tensor1[..., ind+3] = tensor[..., ind+3] - tensor[..., ind+1] + d # Set h
+        tensor1[..., ind] = (tensor[..., ind] + tensor[..., ind + 2]) / 2.0  # Set cx
+        tensor1[..., ind + 1] = (tensor[..., ind + 1] + tensor[..., ind + 3]) / 2.0  # Set cy
+        tensor1[..., ind + 2] = tensor[..., ind + 2] - tensor[..., ind] + d  # Set w
+        tensor1[..., ind + 3] = tensor[..., ind + 3] - tensor[..., ind + 1] + d  # Set h
     elif conversion == 'centroids2corners':
-        tensor1[..., ind] = tensor[..., ind] - tensor[..., ind+2] / 2.0 # Set xmin
-        tensor1[..., ind+1] = tensor[..., ind+1] - tensor[..., ind+3] / 2.0 # Set ymin
-        tensor1[..., ind+2] = tensor[..., ind] + tensor[..., ind+2] / 2.0 # Set xmax
-        tensor1[..., ind+3] = tensor[..., ind+1] + tensor[..., ind+3] / 2.0 # Set ymax
+        tensor1[..., ind] = tensor[..., ind] - tensor[..., ind + 2] / 2.0  # Set xmin
+        tensor1[..., ind + 1] = tensor[..., ind + 1] - tensor[..., ind + 3] / 2.0  # Set ymin
+        tensor1[..., ind + 2] = tensor[..., ind] + tensor[..., ind + 2] / 2.0  # Set xmax
+        tensor1[..., ind + 3] = tensor[..., ind + 1] + tensor[..., ind + 3] / 2.0  # Set ymax
     elif (conversion == 'minmax2corners') or (conversion == 'corners2minmax'):
-        tensor1[..., ind+1] = tensor[..., ind+2]
-        tensor1[..., ind+2] = tensor[..., ind+1]
+        tensor1[..., ind + 1] = tensor[..., ind + 2]
+        tensor1[..., ind + 2] = tensor[..., ind + 1]
     else:
-        raise ValueError("Unexpected conversion value. Supported values are 'minmax2centroids', 'centroids2minmax', 'corners2centroids', 'centroids2corners', 'minmax2corners', and 'corners2minmax'.")
+        raise ValueError(
+            "Unexpected conversion value. Supported values are 'minmax2centroids', 'centroids2minmax', 'corners2centroids', 'centroids2corners', 'minmax2corners', and 'corners2minmax'.")
 
     return tensor1
+
 
 def convert_coordinates2(tensor, start_index, conversion):
     '''
@@ -129,21 +128,22 @@ def convert_coordinates2(tensor, start_index, conversion):
     ind = start_index
     tensor1 = np.copy(tensor).astype(np.float)
     if conversion == 'minmax2centroids':
-        M = np.array([[0.5, 0. , -1.,  0.],
-                      [0.5, 0. ,  1.,  0.],
-                      [0. , 0.5,  0., -1.],
-                      [0. , 0.5,  0.,  1.]])
-        tensor1[..., ind:ind+4] = np.dot(tensor1[..., ind:ind+4], M)
+        M = np.array([[0.5, 0., -1., 0.],
+                      [0.5, 0., 1., 0.],
+                      [0., 0.5, 0., -1.],
+                      [0., 0.5, 0., 1.]])
+        tensor1[..., ind:ind + 4] = np.dot(tensor1[..., ind:ind + 4], M)
     elif conversion == 'centroids2minmax':
-        M = np.array([[ 1. , 1. ,  0. , 0. ],
-                      [ 0. , 0. ,  1. , 1. ],
-                      [-0.5, 0.5,  0. , 0. ],
-                      [ 0. , 0. , -0.5, 0.5]]) # The multiplicative inverse of the matrix above
-        tensor1[..., ind:ind+4] = np.dot(tensor1[..., ind:ind+4], M)
+        M = np.array([[1., 1., 0., 0.],
+                      [0., 0., 1., 1.],
+                      [-0.5, 0.5, 0., 0.],
+                      [0., 0., -0.5, 0.5]])  # The multiplicative inverse of the matrix above
+        tensor1[..., ind:ind + 4] = np.dot(tensor1[..., ind:ind + 4], M)
     else:
         raise ValueError("Unexpected conversion value. Supported values are 'minmax2centroids' and 'centroids2minmax'.")
 
     return tensor1
+
 
 def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels='half'):
     '''
@@ -190,8 +190,11 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
     if boxes1.ndim == 1: boxes1 = np.expand_dims(boxes1, axis=0)
     if boxes2.ndim == 1: boxes2 = np.expand_dims(boxes2, axis=0)
 
-    if not (boxes1.shape[1] == boxes2.shape[1] == 4): raise ValueError("All boxes must consist of 4 coordinates, but the boxes in `boxes1` and `boxes2` have {} and {} coordinates, respectively.".format(boxes1.shape[1], boxes2.shape[1]))
-    if not mode in {'outer_product', 'element-wise'}: raise ValueError("`mode` must be one of 'outer_product' and 'element-wise', but got '{}'.",format(mode))
+    if not (boxes1.shape[1] == boxes2.shape[1] == 4): raise ValueError(
+        "All boxes must consist of 4 coordinates, but the boxes in `boxes1` and `boxes2` have {} and {} coordinates, respectively.".format(
+            boxes1.shape[1], boxes2.shape[1]))
+    if not mode in {'outer_product', 'element-wise'}: raise ValueError(
+        "`mode` must be one of 'outer_product' and 'element-wise', but got '{}'.", format(mode))
 
     # Convert the coordinates if necessary.
     if coords == 'centroids':
@@ -201,8 +204,8 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
     elif not (coords in {'minmax', 'corners'}):
         raise ValueError("Unexpected value for `coords`. Supported values are 'minmax', 'corners' and 'centroids'.")
 
-    m = boxes1.shape[0] # The number of boxes in `boxes1`
-    n = boxes2.shape[0] # The number of boxes in `boxes2`
+    m = boxes1.shape[0]  # The number of boxes in `boxes1`
+    n = boxes2.shape[0]  # The number of boxes in `boxes2`
 
     # Set the correct coordinate indices for the respective formats.
     if coords == 'corners':
@@ -219,9 +222,9 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
     if border_pixels == 'half':
         d = 0
     elif border_pixels == 'include':
-        d = 1 # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
+        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
     elif border_pixels == 'exclude':
-        d = -1 # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
+        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
 
     # Compute the intersection areas.
 
@@ -229,36 +232,37 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
 
         # For all possible box combinations, get the greater xmin and ymin values.
         # This is a tensor of shape (m,n,2).
-        min_xy = np.maximum(np.tile(np.expand_dims(boxes1[:,[xmin,ymin]], axis=1), reps=(1, n, 1)),
-                            np.tile(np.expand_dims(boxes2[:,[xmin,ymin]], axis=0), reps=(m, 1, 1)))
+        min_xy = np.maximum(np.tile(np.expand_dims(boxes1[:, [xmin, ymin]], axis=1), reps=(1, n, 1)),
+                            np.tile(np.expand_dims(boxes2[:, [xmin, ymin]], axis=0), reps=(m, 1, 1)))
 
         # For all possible box combinations, get the smaller xmax and ymax values.
         # This is a tensor of shape (m,n,2).
-        max_xy = np.minimum(np.tile(np.expand_dims(boxes1[:,[xmax,ymax]], axis=1), reps=(1, n, 1)),
-                            np.tile(np.expand_dims(boxes2[:,[xmax,ymax]], axis=0), reps=(m, 1, 1)))
+        max_xy = np.minimum(np.tile(np.expand_dims(boxes1[:, [xmax, ymax]], axis=1), reps=(1, n, 1)),
+                            np.tile(np.expand_dims(boxes2[:, [xmax, ymax]], axis=0), reps=(m, 1, 1)))
 
         # Compute the side lengths of the intersection rectangles.
         side_lengths = np.maximum(0, max_xy - min_xy + d)
 
-        return side_lengths[:,:,0] * side_lengths[:,:,1]
+        return side_lengths[:, :, 0] * side_lengths[:, :, 1]
 
     elif mode == 'element-wise':
 
-        min_xy = np.maximum(boxes1[:,[xmin,ymin]], boxes2[:,[xmin,ymin]])
-        max_xy = np.minimum(boxes1[:,[xmax,ymax]], boxes2[:,[xmax,ymax]])
+        min_xy = np.maximum(boxes1[:, [xmin, ymin]], boxes2[:, [xmin, ymin]])
+        max_xy = np.minimum(boxes1[:, [xmax, ymax]], boxes2[:, [xmax, ymax]])
 
         # Compute the side lengths of the intersection rectangles.
         side_lengths = np.maximum(0, max_xy - min_xy + d)
 
-        return side_lengths[:,0] * side_lengths[:,1]
+        return side_lengths[:, 0] * side_lengths[:, 1]
+
 
 def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', border_pixels='half'):
     '''
     The same as 'intersection_area()' but for internal use, i.e. without all the safety checks.
     '''
 
-    m = boxes1.shape[0] # The number of boxes in `boxes1`
-    n = boxes2.shape[0] # The number of boxes in `boxes2`
+    m = boxes1.shape[0]  # The number of boxes in `boxes1`
+    n = boxes2.shape[0]  # The number of boxes in `boxes2`
 
     # Set the correct coordinate indices for the respective formats.
     if coords == 'corners':
@@ -275,9 +279,9 @@ def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', b
     if border_pixels == 'half':
         d = 0
     elif border_pixels == 'include':
-        d = 1 # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
+        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
     elif border_pixels == 'exclude':
-        d = -1 # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
+        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
 
     # Compute the intersection areas.
 
@@ -285,28 +289,28 @@ def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', b
 
         # For all possible box combinations, get the greater xmin and ymin values.
         # This is a tensor of shape (m,n,2).
-        min_xy = np.maximum(np.tile(np.expand_dims(boxes1[:,[xmin,ymin]], axis=1), reps=(1, n, 1)),
-                            np.tile(np.expand_dims(boxes2[:,[xmin,ymin]], axis=0), reps=(m, 1, 1)))
+        min_xy = np.maximum(np.tile(np.expand_dims(boxes1[:, [xmin, ymin]], axis=1), reps=(1, n, 1)),
+                            np.tile(np.expand_dims(boxes2[:, [xmin, ymin]], axis=0), reps=(m, 1, 1)))
 
         # For all possible box combinations, get the smaller xmax and ymax values.
         # This is a tensor of shape (m,n,2).
-        max_xy = np.minimum(np.tile(np.expand_dims(boxes1[:,[xmax,ymax]], axis=1), reps=(1, n, 1)),
-                            np.tile(np.expand_dims(boxes2[:,[xmax,ymax]], axis=0), reps=(m, 1, 1)))
+        max_xy = np.minimum(np.tile(np.expand_dims(boxes1[:, [xmax, ymax]], axis=1), reps=(1, n, 1)),
+                            np.tile(np.expand_dims(boxes2[:, [xmax, ymax]], axis=0), reps=(m, 1, 1)))
 
         # Compute the side lengths of the intersection rectangles.
         side_lengths = np.maximum(0, max_xy - min_xy + d)
 
-        return side_lengths[:,:,0] * side_lengths[:,:,1]
+        return side_lengths[:, :, 0] * side_lengths[:, :, 1]
 
     elif mode == 'element-wise':
 
-        min_xy = np.maximum(boxes1[:,[xmin,ymin]], boxes2[:,[xmin,ymin]])
-        max_xy = np.minimum(boxes1[:,[xmax,ymax]], boxes2[:,[xmax,ymax]])
+        min_xy = np.maximum(boxes1[:, [xmin, ymin]], boxes2[:, [xmin, ymin]])
+        max_xy = np.minimum(boxes1[:, [xmax, ymax]], boxes2[:, [xmax, ymax]])
 
         # Compute the side lengths of the intersection rectangles.
         side_lengths = np.maximum(0, max_xy - min_xy + d)
 
-        return side_lengths[:,0] * side_lengths[:,1]
+        return side_lengths[:, 0] * side_lengths[:, 1]
 
 
 def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels='half'):
@@ -356,8 +360,11 @@ def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels=
     if boxes1.ndim == 1: boxes1 = np.expand_dims(boxes1, axis=0)
     if boxes2.ndim == 1: boxes2 = np.expand_dims(boxes2, axis=0)
 
-    if not (boxes1.shape[1] == boxes2.shape[1] == 4): raise ValueError("All boxes must consist of 4 coordinates, but the boxes in `boxes1` and `boxes2` have {} and {} coordinates, respectively.".format(boxes1.shape[1], boxes2.shape[1]))
-    if not mode in {'outer_product', 'element-wise'}: raise ValueError("`mode` must be one of 'outer_product' and 'element-wise', but got '{}'.".format(mode))
+    if not (boxes1.shape[1] == boxes2.shape[1] == 4): raise ValueError(
+        "All boxes must consist of 4 coordinates, but the boxes in `boxes1` and `boxes2` have {} and {} coordinates, respectively.".format(
+            boxes1.shape[1], boxes2.shape[1]))
+    if not mode in {'outer_product', 'element-wise'}: raise ValueError(
+        "`mode` must be one of 'outer_product' and 'element-wise', but got '{}'.".format(mode))
 
     # Convert the coordinates if necessary.
     if coords == 'centroids':
@@ -373,8 +380,8 @@ def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels=
 
     intersection_areas = intersection_area_(boxes1, boxes2, coords=coords, mode=mode)
 
-    m = boxes1.shape[0] # The number of boxes in `boxes1`
-    n = boxes2.shape[0] # The number of boxes in `boxes2`
+    m = boxes1.shape[0]  # The number of boxes in `boxes1`
+    n = boxes2.shape[0]  # The number of boxes in `boxes2`
 
     # Compute the union areas.
 
@@ -393,19 +400,23 @@ def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels=
     if border_pixels == 'half':
         d = 0
     elif border_pixels == 'include':
-        d = 1 # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
+        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
     elif border_pixels == 'exclude':
-        d = -1 # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
+        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
 
     if mode == 'outer_product':
 
-        boxes1_areas = np.tile(np.expand_dims((boxes1[:,xmax] - boxes1[:,xmin] + d) * (boxes1[:,ymax] - boxes1[:,ymin] + d), axis=1), reps=(1,n))
-        boxes2_areas = np.tile(np.expand_dims((boxes2[:,xmax] - boxes2[:,xmin] + d) * (boxes2[:,ymax] - boxes2[:,ymin] + d), axis=0), reps=(m,1))
+        boxes1_areas = np.tile(
+            np.expand_dims((boxes1[:, xmax] - boxes1[:, xmin] + d) * (boxes1[:, ymax] - boxes1[:, ymin] + d), axis=1),
+            reps=(1, n))
+        boxes2_areas = np.tile(
+            np.expand_dims((boxes2[:, xmax] - boxes2[:, xmin] + d) * (boxes2[:, ymax] - boxes2[:, ymin] + d), axis=0),
+            reps=(m, 1))
 
     elif mode == 'element-wise':
 
-        boxes1_areas = (boxes1[:,xmax] - boxes1[:,xmin] + d) * (boxes1[:,ymax] - boxes1[:,ymin] + d)
-        boxes2_areas = (boxes2[:,xmax] - boxes2[:,xmin] + d) * (boxes2[:,ymax] - boxes2[:,ymin] + d)
+        boxes1_areas = (boxes1[:, xmax] - boxes1[:, xmin] + d) * (boxes1[:, ymax] - boxes1[:, ymin] + d)
+        boxes2_areas = (boxes2[:, xmax] - boxes2[:, xmin] + d) * (boxes2[:, ymax] - boxes2[:, ymin] + d)
 
     union_areas = boxes1_areas + boxes2_areas - intersection_areas
 
@@ -435,11 +446,11 @@ See the License for the specific language governing permissions and
 
 import numpy as np
 import tensorflow.keras.backend as K
-from tensorflow.keras.layers import InputSpec,Layer
+from tensorflow.keras.layers import InputSpec, Layer
 import tensorflow as tf
 
 
-#from bounding_box_utils.bounding_box_utils import convert_coordinates
+# from bounding_box_utils.bounding_box_utils import convert_coordinates
 
 def convert_coordinates(tensor, start_index, conversion, border_pixels='half'):
     '''
@@ -479,32 +490,34 @@ def convert_coordinates(tensor, start_index, conversion, border_pixels='half'):
     ind = start_index
     tensor1 = np.copy(tensor).astype(np.float)
     if conversion == 'minmax2centroids':
-        tensor1[..., ind] = (tensor[..., ind] + tensor[..., ind+1]) / 2.0 # Set cx
-        tensor1[..., ind+1] = (tensor[..., ind+2] + tensor[..., ind+3]) / 2.0 # Set cy
-        tensor1[..., ind+2] = tensor[..., ind+1] - tensor[..., ind] + d # Set w
-        tensor1[..., ind+3] = tensor[..., ind+3] - tensor[..., ind+2] + d # Set h
+        tensor1[..., ind] = (tensor[..., ind] + tensor[..., ind + 1]) / 2.0  # Set cx
+        tensor1[..., ind + 1] = (tensor[..., ind + 2] + tensor[..., ind + 3]) / 2.0  # Set cy
+        tensor1[..., ind + 2] = tensor[..., ind + 1] - tensor[..., ind] + d  # Set w
+        tensor1[..., ind + 3] = tensor[..., ind + 3] - tensor[..., ind + 2] + d  # Set h
     elif conversion == 'centroids2minmax':
-        tensor1[..., ind] = tensor[..., ind] - tensor[..., ind+2] / 2.0 # Set xmin
-        tensor1[..., ind+1] = tensor[..., ind] + tensor[..., ind+2] / 2.0 # Set xmax
-        tensor1[..., ind+2] = tensor[..., ind+1] - tensor[..., ind+3] / 2.0 # Set ymin
-        tensor1[..., ind+3] = tensor[..., ind+1] + tensor[..., ind+3] / 2.0 # Set ymax
+        tensor1[..., ind] = tensor[..., ind] - tensor[..., ind + 2] / 2.0  # Set xmin
+        tensor1[..., ind + 1] = tensor[..., ind] + tensor[..., ind + 2] / 2.0  # Set xmax
+        tensor1[..., ind + 2] = tensor[..., ind + 1] - tensor[..., ind + 3] / 2.0  # Set ymin
+        tensor1[..., ind + 3] = tensor[..., ind + 1] + tensor[..., ind + 3] / 2.0  # Set ymax
     elif conversion == 'corners2centroids':
-        tensor1[..., ind] = (tensor[..., ind] + tensor[..., ind+2]) / 2.0 # Set cx
-        tensor1[..., ind+1] = (tensor[..., ind+1] + tensor[..., ind+3]) / 2.0 # Set cy
-        tensor1[..., ind+2] = tensor[..., ind+2] - tensor[..., ind] + d # Set w
-        tensor1[..., ind+3] = tensor[..., ind+3] - tensor[..., ind+1] + d # Set h
+        tensor1[..., ind] = (tensor[..., ind] + tensor[..., ind + 2]) / 2.0  # Set cx
+        tensor1[..., ind + 1] = (tensor[..., ind + 1] + tensor[..., ind + 3]) / 2.0  # Set cy
+        tensor1[..., ind + 2] = tensor[..., ind + 2] - tensor[..., ind] + d  # Set w
+        tensor1[..., ind + 3] = tensor[..., ind + 3] - tensor[..., ind + 1] + d  # Set h
     elif conversion == 'centroids2corners':
-        tensor1[..., ind] = tensor[..., ind] - tensor[..., ind+2] / 2.0 # Set xmin
-        tensor1[..., ind+1] = tensor[..., ind+1] - tensor[..., ind+3] / 2.0 # Set ymin
-        tensor1[..., ind+2] = tensor[..., ind] + tensor[..., ind+2] / 2.0 # Set xmax
-        tensor1[..., ind+3] = tensor[..., ind+1] + tensor[..., ind+3] / 2.0 # Set ymax
+        tensor1[..., ind] = tensor[..., ind] - tensor[..., ind + 2] / 2.0  # Set xmin
+        tensor1[..., ind + 1] = tensor[..., ind + 1] - tensor[..., ind + 3] / 2.0  # Set ymin
+        tensor1[..., ind + 2] = tensor[..., ind] + tensor[..., ind + 2] / 2.0  # Set xmax
+        tensor1[..., ind + 3] = tensor[..., ind + 1] + tensor[..., ind + 3] / 2.0  # Set ymax
     elif (conversion == 'minmax2corners') or (conversion == 'corners2minmax'):
-        tensor1[..., ind+1] = tensor[..., ind+2]
-        tensor1[..., ind+2] = tensor[..., ind+1]
+        tensor1[..., ind + 1] = tensor[..., ind + 2]
+        tensor1[..., ind + 2] = tensor[..., ind + 1]
     else:
-        raise ValueError("Unexpected conversion value. Supported values are 'minmax2centroids', 'centroids2minmax', 'corners2centroids', 'centroids2corners', 'minmax2corners', and 'corners2minmax'.")
+        raise ValueError(
+            "Unexpected conversion value. Supported values are 'minmax2centroids', 'centroids2minmax', 'corners2centroids', 'centroids2corners', 'minmax2corners', and 'corners2minmax'.")
 
     return tensor1
+
 
 def convert_coordinates2(tensor, start_index, conversion):
     '''
@@ -520,21 +533,22 @@ def convert_coordinates2(tensor, start_index, conversion):
     ind = start_index
     tensor1 = np.copy(tensor).astype(np.float)
     if conversion == 'minmax2centroids':
-        M = np.array([[0.5, 0. , -1.,  0.],
-                      [0.5, 0. ,  1.,  0.],
-                      [0. , 0.5,  0., -1.],
-                      [0. , 0.5,  0.,  1.]])
-        tensor1[..., ind:ind+4] = np.dot(tensor1[..., ind:ind+4], M)
+        M = np.array([[0.5, 0., -1., 0.],
+                      [0.5, 0., 1., 0.],
+                      [0., 0.5, 0., -1.],
+                      [0., 0.5, 0., 1.]])
+        tensor1[..., ind:ind + 4] = np.dot(tensor1[..., ind:ind + 4], M)
     elif conversion == 'centroids2minmax':
-        M = np.array([[ 1. , 1. ,  0. , 0. ],
-                      [ 0. , 0. ,  1. , 1. ],
-                      [-0.5, 0.5,  0. , 0. ],
-                      [ 0. , 0. , -0.5, 0.5]]) # The multiplicative inverse of the matrix above
-        tensor1[..., ind:ind+4] = np.dot(tensor1[..., ind:ind+4], M)
+        M = np.array([[1., 1., 0., 0.],
+                      [0., 0., 1., 1.],
+                      [-0.5, 0.5, 0., 0.],
+                      [0., 0., -0.5, 0.5]])  # The multiplicative inverse of the matrix above
+        tensor1[..., ind:ind + 4] = np.dot(tensor1[..., ind:ind + 4], M)
     else:
         raise ValueError("Unexpected conversion value. Supported values are 'minmax2centroids' and 'centroids2minmax'.")
 
     return tensor1
+
 
 def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels='half'):
     '''
@@ -581,8 +595,11 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
     if boxes1.ndim == 1: boxes1 = np.expand_dims(boxes1, axis=0)
     if boxes2.ndim == 1: boxes2 = np.expand_dims(boxes2, axis=0)
 
-    if not (boxes1.shape[1] == boxes2.shape[1] == 4): raise ValueError("All boxes must consist of 4 coordinates, but the boxes in `boxes1` and `boxes2` have {} and {} coordinates, respectively.".format(boxes1.shape[1], boxes2.shape[1]))
-    if not mode in {'outer_product', 'element-wise'}: raise ValueError("`mode` must be one of 'outer_product' and 'element-wise', but got '{}'.",format(mode))
+    if not (boxes1.shape[1] == boxes2.shape[1] == 4): raise ValueError(
+        "All boxes must consist of 4 coordinates, but the boxes in `boxes1` and `boxes2` have {} and {} coordinates, respectively.".format(
+            boxes1.shape[1], boxes2.shape[1]))
+    if not mode in {'outer_product', 'element-wise'}: raise ValueError(
+        "`mode` must be one of 'outer_product' and 'element-wise', but got '{}'.", format(mode))
 
     # Convert the coordinates if necessary.
     if coords == 'centroids':
@@ -592,8 +609,8 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
     elif not (coords in {'minmax', 'corners'}):
         raise ValueError("Unexpected value for `coords`. Supported values are 'minmax', 'corners' and 'centroids'.")
 
-    m = boxes1.shape[0] # The number of boxes in `boxes1`
-    n = boxes2.shape[0] # The number of boxes in `boxes2`
+    m = boxes1.shape[0]  # The number of boxes in `boxes1`
+    n = boxes2.shape[0]  # The number of boxes in `boxes2`
 
     # Set the correct coordinate indices for the respective formats.
     if coords == 'corners':
@@ -610,9 +627,9 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
     if border_pixels == 'half':
         d = 0
     elif border_pixels == 'include':
-        d = 1 # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
+        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
     elif border_pixels == 'exclude':
-        d = -1 # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
+        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
 
     # Compute the intersection areas.
 
@@ -620,36 +637,37 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
 
         # For all possible box combinations, get the greater xmin and ymin values.
         # This is a tensor of shape (m,n,2).
-        min_xy = np.maximum(np.tile(np.expand_dims(boxes1[:,[xmin,ymin]], axis=1), reps=(1, n, 1)),
-                            np.tile(np.expand_dims(boxes2[:,[xmin,ymin]], axis=0), reps=(m, 1, 1)))
+        min_xy = np.maximum(np.tile(np.expand_dims(boxes1[:, [xmin, ymin]], axis=1), reps=(1, n, 1)),
+                            np.tile(np.expand_dims(boxes2[:, [xmin, ymin]], axis=0), reps=(m, 1, 1)))
 
         # For all possible box combinations, get the smaller xmax and ymax values.
         # This is a tensor of shape (m,n,2).
-        max_xy = np.minimum(np.tile(np.expand_dims(boxes1[:,[xmax,ymax]], axis=1), reps=(1, n, 1)),
-                            np.tile(np.expand_dims(boxes2[:,[xmax,ymax]], axis=0), reps=(m, 1, 1)))
+        max_xy = np.minimum(np.tile(np.expand_dims(boxes1[:, [xmax, ymax]], axis=1), reps=(1, n, 1)),
+                            np.tile(np.expand_dims(boxes2[:, [xmax, ymax]], axis=0), reps=(m, 1, 1)))
 
         # Compute the side lengths of the intersection rectangles.
         side_lengths = np.maximum(0, max_xy - min_xy + d)
 
-        return side_lengths[:,:,0] * side_lengths[:,:,1]
+        return side_lengths[:, :, 0] * side_lengths[:, :, 1]
 
     elif mode == 'element-wise':
 
-        min_xy = np.maximum(boxes1[:,[xmin,ymin]], boxes2[:,[xmin,ymin]])
-        max_xy = np.minimum(boxes1[:,[xmax,ymax]], boxes2[:,[xmax,ymax]])
+        min_xy = np.maximum(boxes1[:, [xmin, ymin]], boxes2[:, [xmin, ymin]])
+        max_xy = np.minimum(boxes1[:, [xmax, ymax]], boxes2[:, [xmax, ymax]])
 
         # Compute the side lengths of the intersection rectangles.
         side_lengths = np.maximum(0, max_xy - min_xy + d)
 
-        return side_lengths[:,0] * side_lengths[:,1]
+        return side_lengths[:, 0] * side_lengths[:, 1]
+
 
 def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', border_pixels='half'):
     '''
     The same as 'intersection_area()' but for internal use, i.e. without all the safety checks.
     '''
 
-    m = boxes1.shape[0] # The number of boxes in `boxes1`
-    n = boxes2.shape[0] # The number of boxes in `boxes2`
+    m = boxes1.shape[0]  # The number of boxes in `boxes1`
+    n = boxes2.shape[0]  # The number of boxes in `boxes2`
 
     # Set the correct coordinate indices for the respective formats.
     if coords == 'corners':
@@ -666,9 +684,9 @@ def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', b
     if border_pixels == 'half':
         d = 0
     elif border_pixels == 'include':
-        d = 1 # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
+        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
     elif border_pixels == 'exclude':
-        d = -1 # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
+        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
 
     # Compute the intersection areas.
 
@@ -676,28 +694,28 @@ def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', b
 
         # For all possible box combinations, get the greater xmin and ymin values.
         # This is a tensor of shape (m,n,2).
-        min_xy = np.maximum(np.tile(np.expand_dims(boxes1[:,[xmin,ymin]], axis=1), reps=(1, n, 1)),
-                            np.tile(np.expand_dims(boxes2[:,[xmin,ymin]], axis=0), reps=(m, 1, 1)))
+        min_xy = np.maximum(np.tile(np.expand_dims(boxes1[:, [xmin, ymin]], axis=1), reps=(1, n, 1)),
+                            np.tile(np.expand_dims(boxes2[:, [xmin, ymin]], axis=0), reps=(m, 1, 1)))
 
         # For all possible box combinations, get the smaller xmax and ymax values.
         # This is a tensor of shape (m,n,2).
-        max_xy = np.minimum(np.tile(np.expand_dims(boxes1[:,[xmax,ymax]], axis=1), reps=(1, n, 1)),
-                            np.tile(np.expand_dims(boxes2[:,[xmax,ymax]], axis=0), reps=(m, 1, 1)))
+        max_xy = np.minimum(np.tile(np.expand_dims(boxes1[:, [xmax, ymax]], axis=1), reps=(1, n, 1)),
+                            np.tile(np.expand_dims(boxes2[:, [xmax, ymax]], axis=0), reps=(m, 1, 1)))
 
         # Compute the side lengths of the intersection rectangles.
         side_lengths = np.maximum(0, max_xy - min_xy + d)
 
-        return side_lengths[:,:,0] * side_lengths[:,:,1]
+        return side_lengths[:, :, 0] * side_lengths[:, :, 1]
 
     elif mode == 'element-wise':
 
-        min_xy = np.maximum(boxes1[:,[xmin,ymin]], boxes2[:,[xmin,ymin]])
-        max_xy = np.minimum(boxes1[:,[xmax,ymax]], boxes2[:,[xmax,ymax]])
+        min_xy = np.maximum(boxes1[:, [xmin, ymin]], boxes2[:, [xmin, ymin]])
+        max_xy = np.minimum(boxes1[:, [xmax, ymax]], boxes2[:, [xmax, ymax]])
 
         # Compute the side lengths of the intersection rectangles.
         side_lengths = np.maximum(0, max_xy - min_xy + d)
 
-        return side_lengths[:,0] * side_lengths[:,1]
+        return side_lengths[:, 0] * side_lengths[:, 1]
 
 
 def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels='half'):
@@ -747,8 +765,11 @@ def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels=
     if boxes1.ndim == 1: boxes1 = np.expand_dims(boxes1, axis=0)
     if boxes2.ndim == 1: boxes2 = np.expand_dims(boxes2, axis=0)
 
-    if not (boxes1.shape[1] == boxes2.shape[1] == 4): raise ValueError("All boxes must consist of 4 coordinates, but the boxes in `boxes1` and `boxes2` have {} and {} coordinates, respectively.".format(boxes1.shape[1], boxes2.shape[1]))
-    if not mode in {'outer_product', 'element-wise'}: raise ValueError("`mode` must be one of 'outer_product' and 'element-wise', but got '{}'.".format(mode))
+    if not (boxes1.shape[1] == boxes2.shape[1] == 4): raise ValueError(
+        "All boxes must consist of 4 coordinates, but the boxes in `boxes1` and `boxes2` have {} and {} coordinates, respectively.".format(
+            boxes1.shape[1], boxes2.shape[1]))
+    if not mode in {'outer_product', 'element-wise'}: raise ValueError(
+        "`mode` must be one of 'outer_product' and 'element-wise', but got '{}'.".format(mode))
 
     # Convert the coordinates if necessary.
     if coords == 'centroids':
@@ -764,8 +785,8 @@ def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels=
 
     intersection_areas = intersection_area_(boxes1, boxes2, coords=coords, mode=mode)
 
-    m = boxes1.shape[0] # The number of boxes in `boxes1`
-    n = boxes2.shape[0] # The number of boxes in `boxes2`
+    m = boxes1.shape[0]  # The number of boxes in `boxes1`
+    n = boxes2.shape[0]  # The number of boxes in `boxes2`
 
     # Compute the union areas.
 
@@ -784,24 +805,27 @@ def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels=
     if border_pixels == 'half':
         d = 0
     elif border_pixels == 'include':
-        d = 1 # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
+        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
     elif border_pixels == 'exclude':
-        d = -1 # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
+        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
 
     if mode == 'outer_product':
 
-        boxes1_areas = np.tile(np.expand_dims((boxes1[:,xmax] - boxes1[:,xmin] + d) * (boxes1[:,ymax] - boxes1[:,ymin] + d), axis=1), reps=(1,n))
-        boxes2_areas = np.tile(np.expand_dims((boxes2[:,xmax] - boxes2[:,xmin] + d) * (boxes2[:,ymax] - boxes2[:,ymin] + d), axis=0), reps=(m,1))
+        boxes1_areas = np.tile(
+            np.expand_dims((boxes1[:, xmax] - boxes1[:, xmin] + d) * (boxes1[:, ymax] - boxes1[:, ymin] + d), axis=1),
+            reps=(1, n))
+        boxes2_areas = np.tile(
+            np.expand_dims((boxes2[:, xmax] - boxes2[:, xmin] + d) * (boxes2[:, ymax] - boxes2[:, ymin] + d), axis=0),
+            reps=(m, 1))
 
     elif mode == 'element-wise':
 
-        boxes1_areas = (boxes1[:,xmax] - boxes1[:,xmin] + d) * (boxes1[:,ymax] - boxes1[:,ymin] + d)
-        boxes2_areas = (boxes2[:,xmax] - boxes2[:,xmin] + d) * (boxes2[:,ymax] - boxes2[:,ymin] + d)
+        boxes1_areas = (boxes1[:, xmax] - boxes1[:, xmin] + d) * (boxes1[:, ymax] - boxes1[:, ymin] + d)
+        boxes2_areas = (boxes2[:, xmax] - boxes2[:, xmin] + d) * (boxes2[:, ymax] - boxes2[:, ymin] + d)
 
     union_areas = boxes1_areas + boxes2_areas - intersection_areas
 
     return intersection_areas / union_areas
-
 
 
 def match_bipartite_greedy(weight_matrix):
@@ -835,9 +859,9 @@ def match_bipartite_greedy(weight_matrix):
         along the first axis.
     '''
 
-    weight_matrix = np.copy(weight_matrix) # We'll modify this array.
+    weight_matrix = np.copy(weight_matrix)  # We'll modify this array.
     num_ground_truth_boxes = weight_matrix.shape[0]
-    all_gt_indices = list(range(num_ground_truth_boxes)) # Only relevant for fancy-indexing below.
+    all_gt_indices = list(range(num_ground_truth_boxes))  # Only relevant for fancy-indexing below.
 
     # This 1D array will contain for each ground truth box the index of
     # the matched anchor box.
@@ -846,22 +870,22 @@ def match_bipartite_greedy(weight_matrix):
     # In each iteration of the loop below, exactly one ground truth box
     # will be matched to one anchor box.
     for _ in range(num_ground_truth_boxes):
-
         # Find the maximal anchor-ground truth pair in two steps: First, reduce
         # over the anchor boxes and then reduce over the ground truth boxes.
-        anchor_indices = np.argmax(weight_matrix, axis=1) # Reduce along the anchor box axis.
+        anchor_indices = np.argmax(weight_matrix, axis=1)  # Reduce along the anchor box axis.
         overlaps = weight_matrix[all_gt_indices, anchor_indices]
-        ground_truth_index = np.argmax(overlaps) # Reduce along the ground truth box axis.
+        ground_truth_index = np.argmax(overlaps)  # Reduce along the ground truth box axis.
         anchor_index = anchor_indices[ground_truth_index]
-        matches[ground_truth_index] = anchor_index # Set the match.
+        matches[ground_truth_index] = anchor_index  # Set the match.
 
         # Set the row of the matched ground truth box and the column of the matched
         # anchor box to all zeros. This ensures that those boxes will not be matched again,
         # because they will never be the best matches for any other boxes.
         weight_matrix[ground_truth_index] = 0
-        weight_matrix[:,anchor_index] = 0
+        weight_matrix[:, anchor_index] = 0
 
     return matches
+
 
 def match_multi(weight_matrix, threshold):
     '''
@@ -888,11 +912,11 @@ def match_multi(weight_matrix, threshold):
     '''
 
     num_anchor_boxes = weight_matrix.shape[1]
-    all_anchor_indices = list(range(num_anchor_boxes)) # Only relevant for fancy-indexing below.
+    all_anchor_indices = list(range(num_anchor_boxes))  # Only relevant for fancy-indexing below.
 
     # Find the best ground truth match for every anchor box.
-    ground_truth_indices = np.argmax(weight_matrix, axis=0) # Array of shape (weight_matrix.shape[1],)
-    overlaps = weight_matrix[ground_truth_indices, all_anchor_indices] # Array of shape (weight_matrix.shape[1],)
+    ground_truth_indices = np.argmax(weight_matrix, axis=0)  # Array of shape (weight_matrix.shape[1],)
+    overlaps = weight_matrix[ground_truth_indices, all_anchor_indices]  # Array of shape (weight_matrix.shape[1],)
 
     # Filter out the matches with a weight below the threshold.
     anchor_indices_thresh_met = np.nonzero(overlaps >= threshold)[0]
@@ -962,10 +986,10 @@ class SSDInputEncoder:
             background_id (int, optional): Determines which class ID is for the background class.
         '''
         variances = [1.0, 1.0, 1.0, 1.0]
-        two_boxes_for_ar1=True,
+        two_boxes_for_ar1 = True,
         predictor_sizes = np.array(predictor_sizes)
-        coords='centroids'
-        clip_boxes=False
+        coords = 'centroids'
+        clip_boxes = False
         if predictor_sizes.ndim == 1:
             predictor_sizes = np.expand_dims(predictor_sizes, axis=0)
 
@@ -973,7 +997,7 @@ class SSDInputEncoder:
         # Handle exceptions.
         ##################################################################################
 
-        if aspect_ratios is None :
+        if aspect_ratios is None:
             raise ValueError("`aspect_ratios' cannot both be None. ")
         if (min_scale is None or max_scale is None):
             raise ValueError("`min_scale` and `max_scale` need to be specified.")
@@ -984,11 +1008,11 @@ class SSDInputEncoder:
 
         self.img_height = img_height
         self.img_width = img_width
-        self.n_classes = n_classes + 1 # + 1 for the background class
+        self.n_classes = n_classes + 1  # + 1 for the background class
         self.predictor_sizes = predictor_sizes
         self.min_scale = min_scale
         self.max_scale = max_scale
-        self.scales = np.linspace(self.min_scale, self.max_scale, len(self.predictor_sizes)+1)
+        self.scales = np.linspace(self.min_scale, self.max_scale, len(self.predictor_sizes) + 1)
         self.aspect_ratios = [aspect_ratios] * predictor_sizes.shape[0]
         self.two_boxes_for_ar1 = two_boxes_for_ar1
         self.clip_boxes = clip_boxes
@@ -999,17 +1023,15 @@ class SSDInputEncoder:
         self.coords = coords
         self.normalize_coords = normalize_coords
         self.background_id = background_id
-        
 
-
-        self.boxes_list = [] # Anchor boxes for each predictor layer.
+        self.boxes_list = []  # Anchor boxes for each predictor layer.
 
         # Iterate over all predictor layers and compute the anchor boxes (feature_map_height, feature_map_width, n_boxes, 4) for each one.
         for i in range(len(self.predictor_sizes)):
             boxes = self.generate_anchor_boxes_for_layer(feature_map_size=self.predictor_sizes[i],
-                                                                                   aspect_ratios=self.aspect_ratios[i],
-                                                                                   this_scale=self.scales[i],
-                                                                                   next_scale=self.scales[i+1])
+                                                         aspect_ratios=self.aspect_ratios[i],
+                                                         this_scale=self.scales[i],
+                                                         next_scale=self.scales[i + 1])
             self.boxes_list.append(boxes)
 
     def __call__(self, ground_truth_labels):
@@ -1038,36 +1060,43 @@ class SSDInputEncoder:
         xmax = 3
         ymax = 4
         batch_size = len(ground_truth_labels)
+        if batch_size == 0:
+            print(ground_truth_labels)
         # Generate the template for y_encoded using the anchor boxes generated in constructor
-        y_encoded = self.generate_encoding_template(batch_size=batch_size) # shape (batch_size, n_boxes, #classes + 12)
-        y_encoded[:, :, self.background_id] = 1 # Initialize all boxes to background class
-        n_boxes = y_encoded.shape[1] # The total number of boxes that the model predicts per batch item
-        class_vectors = np.eye(self.n_classes) # An identity matrix used as one-hot class vectors
+        y_encoded = self.generate_encoding_template(batch_size=batch_size)  # shape (batch_size, n_boxes, #classes + 12)
+        y_encoded[:, :, self.background_id] = 1  # Initialize all boxes to background class
+        n_boxes = y_encoded.shape[1]  # The total number of boxes that the model predicts per batch item
+        class_vectors = np.eye(self.n_classes)  # An identity matrix used as one-hot class vectors
 
-        # 2. Match Ground Truth boxes to anchor boxes. Boxes with IOU > pos_iou_threshold will be positive, 
-        # those with IOU < neg_iou_limit will be negative, while others will be neutral. 
+        # 2. Match Ground Truth boxes to anchor boxes. Boxes with IOU > pos_iou_threshold will be positive,
+        # those with IOU < neg_iou_limit will be negative, while others will be neutral.
 
-        for i in range(batch_size): 
-            if ground_truth_labels[i].size == 0: continue # If there is no ground truth for this batch item, there is nothing to match.
-            labels = ground_truth_labels[i].astype(np.float) # The labels for this batch item. shape(k,5)
+        for i in range(batch_size):
+            if ground_truth_labels[
+                i].size == 0: continue  # If there is no ground truth for this batch item, there is nothing to match.
+            labels = ground_truth_labels[i].astype(np.float)  # The labels for this batch item. shape(k,5)
 
             # Maybe normalize the box coordinates.
             if self.normalize_coords:
-                labels[:,[ymin,ymax]] /= self.img_height # Normalize ymin and ymax relative to the image height
-                labels[:,[xmin,xmax]] /= self.img_width # Normalize xmin and xmax relative to the image width
+                labels[:, [ymin, ymax]] /= self.img_height  # Normalize ymin and ymax relative to the image height
+                labels[:, [xmin, xmax]] /= self.img_width  # Normalize xmin and xmax relative to the image width
 
-            # convert the box coordinate format if needed 
+            # convert the box coordinate format if needed
             if self.coords == 'centroids':
-                labels = convert_coordinates(labels, start_index=xmin, conversion='corners2centroids', border_pixels=self.border_pixels)
+                labels = convert_coordinates(labels, start_index=xmin, conversion='corners2centroids',
+                                             border_pixels=self.border_pixels)
             elif self.coords == 'minmax':
                 labels = convert_coordinates(labels, start_index=xmin, conversion='corners2minmax')
 
-            classes_one_hot = class_vectors[labels[:, class_id].astype(np.int)] # The one-hot class IDs for the ground truth boxes of this batch item
-            labels_one_hot = np.concatenate([classes_one_hot, labels[:, [xmin,ymin,xmax,ymax]]], axis=-1) # The one-hot version of the labels for this batch item
+            classes_one_hot = class_vectors[labels[:, class_id].astype(
+                np.int)]  # The one-hot class IDs for the ground truth boxes of this batch item
+            labels_one_hot = np.concatenate([classes_one_hot, labels[:, [xmin, ymin, xmax, ymax]]],
+                                            axis=-1)  # The one-hot version of the labels for this batch item
 
             # Compute the IoU similarities between all anchor boxes and all ground truth boxes for this batch item.
             # This is a matrix of shape `(num_ground_truth_boxes, num_anchor_boxes)`.
-            similarities = iou(labels[:,[xmin,ymin,xmax,ymax]], y_encoded[i,:,-12:-8], coords=self.coords, mode='outer_product', border_pixels=self.border_pixels)
+            similarities = iou(labels[:, [xmin, ymin, xmax, ymax]], y_encoded[i, :, -12:-8], coords=self.coords,
+                               mode='outer_product', border_pixels=self.border_pixels)
 
             # 2.1 For each ground truth box, get the anchor box with highest IOU even if less than pos_iou_threshold.
             bipartite_matches = match_bipartite_greedy(weight_matrix=similarities)
@@ -1094,20 +1123,28 @@ class SSDInputEncoder:
         ##################################################################################
 
         if self.coords == 'centroids':
-            y_encoded[:,:,[-12,-11]] -= y_encoded[:,:,[-8,-7]] # cx(gt) - cx(anchor), cy(gt) - cy(anchor)
-            y_encoded[:,:,[-12,-11]] /= y_encoded[:,:,[-6,-5]] * y_encoded[:,:,[-4,-3]] # (cx(gt) - cx(anchor)) / w(anchor) / cx_variance, (cy(gt) - cy(anchor)) / h(anchor) / cy_variance
-            y_encoded[:,:,[-10,-9]] /= y_encoded[:,:,[-6,-5]] # w(gt) / w(anchor), h(gt) / h(anchor)
-            y_encoded[:,:,[-10,-9]] = np.log(y_encoded[:,:,[-10,-9]]) / y_encoded[:,:,[-2,-1]] # ln(w(gt) / w(anchor)) / w_variance, ln(h(gt) / h(anchor)) / h_variance (ln == natural logarithm)
+            y_encoded[:, :, [-12, -11]] -= y_encoded[:, :, [-8, -7]]  # cx(gt) - cx(anchor), cy(gt) - cy(anchor)
+            y_encoded[:, :, [-12, -11]] /= y_encoded[:, :, [-6, -5]] * y_encoded[:, :, [-4,
+                                                                                        -3]]  # (cx(gt) - cx(anchor)) / w(anchor) / cx_variance, (cy(gt) - cy(anchor)) / h(anchor) / cy_variance
+            y_encoded[:, :, [-10, -9]] /= y_encoded[:, :, [-6, -5]]  # w(gt) / w(anchor), h(gt) / h(anchor)
+            y_encoded[:, :, [-10, -9]] = np.log(y_encoded[:, :, [-10, -9]]) / y_encoded[:, :, [-2,
+                                                                                               -1]]  # ln(w(gt) / w(anchor)) / w_variance, ln(h(gt) / h(anchor)) / h_variance (ln == natural logarithm)
         elif self.coords == 'corners':
-            y_encoded[:,:,-12:-8] -= y_encoded[:,:,-8:-4] # (gt - anchor) for all four coordinates
-            y_encoded[:,:,[-12,-10]] /= np.expand_dims(y_encoded[:,:,-6] - y_encoded[:,:,-8], axis=-1) # (xmin(gt) - xmin(anchor)) / w(anchor), (xmax(gt) - xmax(anchor)) / w(anchor)
-            y_encoded[:,:,[-11,-9]] /= np.expand_dims(y_encoded[:,:,-5] - y_encoded[:,:,-7], axis=-1) # (ymin(gt) - ymin(anchor)) / h(anchor), (ymax(gt) - ymax(anchor)) / h(anchor)
-            y_encoded[:,:,-12:-8] /= y_encoded[:,:,-4:] # (gt - anchor) / size(anchor) / variance for all four coordinates, where 'size' refers to w and h respectively
+            y_encoded[:, :, -12:-8] -= y_encoded[:, :, -8:-4]  # (gt - anchor) for all four coordinates
+            y_encoded[:, :, [-12, -10]] /= np.expand_dims(y_encoded[:, :, -6] - y_encoded[:, :, -8],
+                                                          axis=-1)  # (xmin(gt) - xmin(anchor)) / w(anchor), (xmax(gt) - xmax(anchor)) / w(anchor)
+            y_encoded[:, :, [-11, -9]] /= np.expand_dims(y_encoded[:, :, -5] - y_encoded[:, :, -7],
+                                                         axis=-1)  # (ymin(gt) - ymin(anchor)) / h(anchor), (ymax(gt) - ymax(anchor)) / h(anchor)
+            y_encoded[:, :, -12:-8] /= y_encoded[:, :,
+                                       -4:]  # (gt - anchor) / size(anchor) / variance for all four coordinates, where 'size' refers to w and h respectively
         elif self.coords == 'minmax':
-            y_encoded[:,:,-12:-8] -= y_encoded[:,:,-8:-4] # (gt - anchor) for all four coordinates
-            y_encoded[:,:,[-12,-11]] /= np.expand_dims(y_encoded[:,:,-7] - y_encoded[:,:,-8], axis=-1) # (xmin(gt) - xmin(anchor)) / w(anchor), (xmax(gt) - xmax(anchor)) / w(anchor)
-            y_encoded[:,:,[-10,-9]] /= np.expand_dims(y_encoded[:,:,-5] - y_encoded[:,:,-6], axis=-1) # (ymin(gt) - ymin(anchor)) / h(anchor), (ymax(gt) - ymax(anchor)) / h(anchor)
-            y_encoded[:,:,-12:-8] /= y_encoded[:,:,-4:] # (gt - anchor) / size(anchor) / variance for all four coordinates, where 'size' refers to w and h respectively
+            y_encoded[:, :, -12:-8] -= y_encoded[:, :, -8:-4]  # (gt - anchor) for all four coordinates
+            y_encoded[:, :, [-12, -11]] /= np.expand_dims(y_encoded[:, :, -7] - y_encoded[:, :, -8],
+                                                          axis=-1)  # (xmin(gt) - xmin(anchor)) / w(anchor), (xmax(gt) - xmax(anchor)) / w(anchor)
+            y_encoded[:, :, [-10, -9]] /= np.expand_dims(y_encoded[:, :, -5] - y_encoded[:, :, -6],
+                                                         axis=-1)  # (ymin(gt) - ymin(anchor)) / h(anchor), (ymax(gt) - ymax(anchor)) / h(anchor)
+            y_encoded[:, :, -12:-8] /= y_encoded[:, :,
+                                       -4:]  # (gt - anchor) / size(anchor) / variance for all four coordinates, where 'size' refers to w and h respectively
 
         return y_encoded
 
@@ -1161,39 +1198,41 @@ class SSDInputEncoder:
         # Compute the step sizes, i.e. how far apart the anchor box center points will be vertically and horizontally.
         step_height = self.img_height / feature_map_size[0]
         step_width = self.img_width / feature_map_size[1]
-       
+
         # Compute the offsets, i.e. at what pixel values the first anchor box center point will be from the top and from the left of the image.
         offset_height = 0.5
         offset_width = 0.5
         # Now that we have the offsets and step sizes, compute the grid of anchor box center points.
-        cy = np.linspace(offset_height * step_height, (offset_height + feature_map_size[0] - 1) * step_height, feature_map_size[0])
-        cx = np.linspace(offset_width * step_width, (offset_width + feature_map_size[1] - 1) * step_width, feature_map_size[1])
+        cy = np.linspace(offset_height * step_height, (offset_height + feature_map_size[0] - 1) * step_height,
+                         feature_map_size[0])
+        cx = np.linspace(offset_width * step_width, (offset_width + feature_map_size[1] - 1) * step_width,
+                         feature_map_size[1])
         cx_grid, cy_grid = np.meshgrid(cx, cy)
-        cx_grid = np.expand_dims(cx_grid, -1) # This is necessary for np.tile() to do what we want further down
-        cy_grid = np.expand_dims(cy_grid, -1) # This is necessary for np.tile() to do what we want further down
+        cx_grid = np.expand_dims(cx_grid, -1)  # This is necessary for np.tile() to do what we want further down
+        cy_grid = np.expand_dims(cy_grid, -1)  # This is necessary for np.tile() to do what we want further down
 
         # Create a 4D tensor template of shape `(feature_map_height, feature_map_width, n_boxes, 4)`
         # where the last dimension will contain `(cx, cy, w, h)`
         boxes_tensor = np.zeros((feature_map_size[0], feature_map_size[1], n_boxes, 4))
 
-        boxes_tensor[:, :, :, 0] = np.tile(cx_grid, (1, 1, n_boxes)) # Set cx
-        boxes_tensor[:, :, :, 1] = np.tile(cy_grid, (1, 1, n_boxes)) # Set cy
-        boxes_tensor[:, :, :, 2] = wh_list[:, 0] # Set w
-        boxes_tensor[:, :, :, 3] = wh_list[:, 1] # Set h
+        boxes_tensor[:, :, :, 0] = np.tile(cx_grid, (1, 1, n_boxes))  # Set cx
+        boxes_tensor[:, :, :, 1] = np.tile(cy_grid, (1, 1, n_boxes))  # Set cy
+        boxes_tensor[:, :, :, 2] = wh_list[:, 0]  # Set w
+        boxes_tensor[:, :, :, 3] = wh_list[:, 1]  # Set h
 
         # Convert `(cx, cy, w, h)` to `(xmin, ymin, xmax, ymax)`
         boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='centroids2corners')
 
         # If `clip_boxes` is enabled, clip the coordinates to lie within the image boundaries
         if self.clip_boxes:
-            x_coords = boxes_tensor[:,:,:,[0, 2]]
+            x_coords = boxes_tensor[:, :, :, [0, 2]]
             x_coords[x_coords >= self.img_width] = self.img_width - 1
             x_coords[x_coords < 0] = 0
-            boxes_tensor[:,:,:,[0, 2]] = x_coords
-            y_coords = boxes_tensor[:,:,:,[1, 3]]
+            boxes_tensor[:, :, :, [0, 2]] = x_coords
+            y_coords = boxes_tensor[:, :, :, [1, 3]]
             y_coords[y_coords >= self.img_height] = self.img_height - 1
             y_coords[y_coords < 0] = 0
-            boxes_tensor[:,:,:,[1, 3]] = y_coords
+            boxes_tensor[:, :, :, [1, 3]] = y_coords
 
         # `normalize_coords` is enabled, normalize the coordinates to be within [0,1]
         if self.normalize_coords:
@@ -1203,10 +1242,12 @@ class SSDInputEncoder:
         # TODO: Implement box limiting directly for `(cx, cy, w, h)` so that we don't have to unnecessarily convert back and forth.
         if self.coords == 'centroids':
             # Convert `(xmin, ymin, xmax, ymax)` back to `(cx, cy, w, h)`.
-            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2centroids', border_pixels='half')
+            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2centroids',
+                                               border_pixels='half')
         elif self.coords == 'minmax':
             # Convert `(xmin, ymin, xmax, ymax)` to `(xmin, xmax, ymin, ymax).
-            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2minmax', border_pixels='half')
+            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2minmax',
+                                               border_pixels='half')
 
         return boxes_tensor
 
@@ -1246,7 +1287,7 @@ class SSDInputEncoder:
         # 4: Create a tensor to contain the variances. This tensor has the same shape as `boxes_tensor` and simply
         #    contains the same 4 variance values for every position in the last axis.
         variances_tensor = np.zeros_like(boxes_tensor)
-        variances_tensor += self.variances # Long live broadcasting
+        variances_tensor += self.variances  # Long live broadcasting
 
         # 4: Concatenate the classes, boxes and variances tensors to get our final template for y_encoded. We also need
         #    another tensor of the shape of `boxes_tensor` as a space filler so that `y_encoding_template` has the same
@@ -1255,7 +1296,6 @@ class SSDInputEncoder:
         y_encoding_template = np.concatenate((classes_tensor, boxes_tensor, boxes_tensor, variances_tensor), axis=2)
 
         return y_encoding_template
-
 
 
 class AnchorBoxes(Layer):
@@ -1330,10 +1370,14 @@ class AnchorBoxes(Layer):
                 i.e. if the model predicts box coordinates within [0,1] instead of absolute coordinates.
         '''
         if K.backend() != 'tensorflow':
-            raise TypeError("This layer only supports TensorFlow at the moment, but you are using the {} backend.".format(K.backend()))
+            raise TypeError(
+                "This layer only supports TensorFlow at the moment, but you are using the {} backend.".format(
+                    K.backend()))
 
         if (this_scale < 0) or (next_scale < 0) or (this_scale > 1):
-            raise ValueError("`this_scale` must be in [0, 1] and `next_scale` must be >0, but `this_scale` == {}, `next_scale` == {}".format(this_scale, next_scale))
+            raise ValueError(
+                "`this_scale` must be in [0, 1] and `next_scale` must be >0, but `this_scale` == {}, `next_scale` == {}".format(
+                    this_scale, next_scale))
 
         if len(variances) != 4:
             raise ValueError("4 variance values must be pased, but {} values were received.".format(len(variances)))
@@ -1430,34 +1474,36 @@ class AnchorBoxes(Layer):
                 offset_height = self.this_offsets
                 offset_width = self.this_offsets
         # Now that we have the offsets and step sizes, compute the grid of anchor box center points.
-        cy = np.linspace(offset_height * step_height, (offset_height + feature_map_height - 1) * step_height, feature_map_height)
-        cx = np.linspace(offset_width * step_width, (offset_width + feature_map_width - 1) * step_width, feature_map_width)
+        cy = np.linspace(offset_height * step_height, (offset_height + feature_map_height - 1) * step_height,
+                         feature_map_height)
+        cx = np.linspace(offset_width * step_width, (offset_width + feature_map_width - 1) * step_width,
+                         feature_map_width)
         cx_grid, cy_grid = np.meshgrid(cx, cy)
-        cx_grid = np.expand_dims(cx_grid, -1) # This is necessary for np.tile() to do what we want further down
-        cy_grid = np.expand_dims(cy_grid, -1) # This is necessary for np.tile() to do what we want further down
+        cx_grid = np.expand_dims(cx_grid, -1)  # This is necessary for np.tile() to do what we want further down
+        cy_grid = np.expand_dims(cy_grid, -1)  # This is necessary for np.tile() to do what we want further down
 
         # Create a 4D tensor template of shape `(feature_map_height, feature_map_width, n_boxes, 4)`
         # where the last dimension will contain `(cx, cy, w, h)`
         boxes_tensor = np.zeros((feature_map_height, feature_map_width, self.n_boxes, 4))
 
-        boxes_tensor[:, :, :, 0] = np.tile(cx_grid, (1, 1, self.n_boxes)) # Set cx
-        boxes_tensor[:, :, :, 1] = np.tile(cy_grid, (1, 1, self.n_boxes)) # Set cy
-        boxes_tensor[:, :, :, 2] = wh_list[:, 0] # Set w
-        boxes_tensor[:, :, :, 3] = wh_list[:, 1] # Set h
+        boxes_tensor[:, :, :, 0] = np.tile(cx_grid, (1, 1, self.n_boxes))  # Set cx
+        boxes_tensor[:, :, :, 1] = np.tile(cy_grid, (1, 1, self.n_boxes))  # Set cy
+        boxes_tensor[:, :, :, 2] = wh_list[:, 0]  # Set w
+        boxes_tensor[:, :, :, 3] = wh_list[:, 1]  # Set h
 
         # Convert `(cx, cy, w, h)` to `(xmin, xmax, ymin, ymax)`
         boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='centroids2corners')
 
         # If `clip_boxes` is enabled, clip the coordinates to lie within the image boundaries
         if self.clip_boxes:
-            x_coords = boxes_tensor[:,:,:,[0, 2]]
+            x_coords = boxes_tensor[:, :, :, [0, 2]]
             x_coords[x_coords >= self.img_width] = self.img_width - 1
             x_coords[x_coords < 0] = 0
-            boxes_tensor[:,:,:,[0, 2]] = x_coords
-            y_coords = boxes_tensor[:,:,:,[1, 3]]
+            boxes_tensor[:, :, :, [0, 2]] = x_coords
+            y_coords = boxes_tensor[:, :, :, [1, 3]]
             y_coords[y_coords >= self.img_height] = self.img_height - 1
             y_coords[y_coords < 0] = 0
-            boxes_tensor[:,:,:,[1, 3]] = y_coords
+            boxes_tensor[:, :, :, [1, 3]] = y_coords
 
         # If `normalize_coords` is enabled, normalize the coordinates to be within [0,1]
         if self.normalize_coords:
@@ -1467,15 +1513,18 @@ class AnchorBoxes(Layer):
         # TODO: Implement box limiting directly for `(cx, cy, w, h)` so that we don't have to unnecessarily convert back and forth.
         if self.coords == 'centroids':
             # Convert `(xmin, ymin, xmax, ymax)` back to `(cx, cy, w, h)`.
-            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2centroids', border_pixels='half')
+            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2centroids',
+                                               border_pixels='half')
         elif self.coords == 'minmax':
             # Convert `(xmin, ymin, xmax, ymax)` to `(xmin, xmax, ymin, ymax).
-            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2minmax', border_pixels='half')
+            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2minmax',
+                                               border_pixels='half')
 
         # Create a tensor to contain the variances and append it to `boxes_tensor`. This tensor has the same shape
         # as `boxes_tensor` and simply contains the same 4 variance values for every position in the last axis.
-        variances_tensor = np.zeros_like(boxes_tensor) # Has shape `(feature_map_height, feature_map_width, n_boxes, 4)`
-        variances_tensor += self.variances # Long live broadcasting
+        variances_tensor = np.zeros_like(
+            boxes_tensor)  # Has shape `(feature_map_height, feature_map_width, n_boxes, 4)`
+        variances_tensor += self.variances  # Long live broadcasting
         # Now `boxes_tensor` becomes a tensor of shape `(feature_map_height, feature_map_width, n_boxes, 8)`
         boxes_tensor = np.concatenate((boxes_tensor, variances_tensor), axis=-1)
 
@@ -1489,7 +1538,7 @@ class AnchorBoxes(Layer):
     def compute_output_shape(self, input_shape):
         if K.image_dim_ordering() == 'tf':
             batch_size, feature_map_height, feature_map_width, feature_map_channels = input_shape
-        else: # Not yet relevant since TensorFlow is the only supported backend right now, but it can't harm to have this in here for the future
+        else:  # Not yet relevant since TensorFlow is the only supported backend right now, but it can't harm to have this in here for the future
             batch_size, feature_map_channels, feature_map_height, feature_map_width = input_shape
         return (batch_size, feature_map_height, feature_map_width, self.n_boxes, 8)
 
@@ -1508,6 +1557,7 @@ class AnchorBoxes(Layer):
         }
         base_config = super(AnchorBoxes, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
 
 ########################################################
 ### Loss Functions
@@ -1651,14 +1701,12 @@ class SSDLoss:
         return total_loss
 
 
-
-
 def build_model(image_size,
                 n_classes,
                 l2_regularization=0.0,
                 min_scale=0.2,
                 max_scale=0.9,
-                aspect_ratios=[0.5, 1.0, 2.0],
+                aspect_ratios=[1, 2, 3, 0.5, 0.33],
                 normalize_coords=False,
                 subtract_mean=None,
                 divide_by_stddev=None):
@@ -1811,7 +1859,6 @@ def build_model(image_size,
     # Set the aspect ratios for each predictor layer. These are only needed for the anchor box layers.
     n_boxes = len(aspect_ratios) + 1
     aspect_ratios = [aspect_ratios] * n_predictor_layers
-    
     n_boxes = [n_boxes] * n_predictor_layers
 
     ############################################################################
@@ -2087,7 +2134,7 @@ def build_model(image_size,
     return model
 
 
-def read_csv(filename):
+def read_csv(xml_path, filename):
     """Read CSV
     This function reads CSV File and returns a list
     # Arguments
@@ -2095,7 +2142,7 @@ def read_csv(filename):
     # Returns
         List of values [Img Filename, Img width, Img height, Img Chn, xmin, xmax, ymin, ymax, label]
     """
-    with open(filename, 'r') as f:
+    with open(xml_path + filename, 'r') as f:
         reader = csv.reader(f)
         data = list(reader)
     return data
@@ -2111,7 +2158,7 @@ def xml_to_csv(xml_directory):
             file_location(string)
 
     """
-    xml = glob.glob(xml_directory+"*.xml")
+    xml = glob.glob(xml_directory + "*.xml")
     image_dict = []
     for image in xml:
         root = ET.parse(image).getroot()
@@ -2131,7 +2178,7 @@ def xml_to_csv(xml_directory):
                 label = obj.find('name').text
                 image_dict.append([img_name, img_w, img_h, img_d, x_min, x_max, y_min, y_max, label])
 
-    with open("labels.csv", "w", newline="") as f:
+    with open(xml_directory + "labels.csv", "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerows(image_dict)
 
@@ -2140,7 +2187,8 @@ def xml_to_csv(xml_directory):
     return file_location
 
 
-def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=300, translate=0, rotate=0, scale=1, shear=0, hor_flip=False,
+def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=300, translate=0, rotate=0, scale=1, shear=0,
+                       hor_flip=False,
                        ver_flip=False):
     """Image Augmentation
     This function checks for multiple classes/bounding box in an image, resizes and augments images and
@@ -2200,13 +2248,13 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=300, transl
         iaa.Affine(
             translate_percent={"x": (-translate, translate), "y": (-translate, translate)},
             rotate=(-rotate, rotate),
-            scale=(1/scale, scale),
+            scale=(1 / scale, scale),
             shear=(-shear, shear)
         )
     ])
     # Augment BBs and images.
     image_aug, bbs_aug = seq(image=img, bounding_boxes=bbs)
-    image_aug = image_aug/255
+    image_aug = image_aug / 255
     bbs_aug = bbs_aug.remove_out_of_image().clip_out_of_image()
 
     for i in range(len(bbs_aug.bounding_boxes)):
@@ -2216,11 +2264,11 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=300, transl
 
     y = np.asarray(labels)
 
-
     return image_aug, y
 
 
-def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_encoder, img_sz=300, translate=0, rotate=0,
+def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_encoder, img_sz=300, translate=0,
+                          rotate=0,
                           scale=0, shear=0, hor_flip=False, ver_flip=False):
     """Batch Generator for Training Images
     Generator which returns batches of numpy array consisting of 2 numpy arrays for training
@@ -2246,40 +2294,46 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
     batch_data = []
     # get the full list of images
     images = list(set([csv_data[i][0] for i in range(len(csv_data))]))
+    cur_step = 0
     # organise images into batches
-    for i in range(steps_per_epoch + 1):
-        if i == steps_per_epoch:
-            start = i * batch_size
+    while True:
+
+        if cur_step == steps_per_epoch:
+            start = cur_step * batch_size
             end = len(images)
             batch_data = images[start:end]
+            cur_step += 1
         else:
-            start = i * batch_size
-            end = i * batch_size + batch_size
+            start = cur_step * batch_size
+            end = cur_step * batch_size + batch_size
             batch_data = images[start:end]
+            cur_step = 0
         X = []
         Y = []
         for j in batch_data:
             # do image augmentation and returns augmented image and bounding boxes
             x_image, y_boxes = image_augmentation(j,
-                                            csv_data,
-                                            img_dir,
-                                            img_sz=img_sz,
-                                            translate=translate,
-                                            rotate=rotate,
-                                            scale=scale,
-                                            shear=shear,
-                                            hor_flip=hor_flip,
-                                            ver_flip=ver_flip)
+                                                  csv_data,
+                                                  img_dir,
+                                                  img_sz=img_sz,
+                                                  translate=translate,
+                                                  rotate=rotate,
+                                                  scale=scale,
+                                                  shear=shear,
+                                                  hor_flip=hor_flip,
+                                                  ver_flip=ver_flip)
             X.append(x_image)
             Y.append(y_boxes)
         X = np.array(X)
         Y = label_encoder(Y)
-
+        if len(Y) == 0:
+            print(Y)
         yield X, Y
         # clear list after completion
         X = []
         y_boxes = []
         Y = []
+
 
 class datagen:
     def data_generator(img_dir, xml_dir, label_encoder, batch_size=None, steps_per_epoch=None, img_sz=300,
@@ -2301,30 +2355,32 @@ class datagen:
         """
         # Exceptions
         # filename check
-    
+
         # User must input either batch_size or steps_per_epoch
         if batch_size is None and steps_per_epoch is None:
-            raise ValueError("'batch_size' or `steps_per_epoch` have not been set yet. You need to pass them as arguments.")
+            raise ValueError(
+                "'batch_size' or `steps_per_epoch` have not been set yet. You need to pass them as arguments.")
         if batch_size is not None and steps_per_epoch is not None:
             raise ValueError("'batch_size' and `steps_per_epoch` has been set. You can only pass either one arguments.")
         # Converts directory xml files to CSV and stores in same directory
         csv_path = xml_to_csv(xml_dir)
         # Read CSV File
-        data_csv = read_csv("labels.csv")
-    
+        data_csv = read_csv(xml_dir, "labels.csv")
+
         # Split data into 3 parts
         # train_data = splitted_data_csv_train
         # valid_data = splitted_data_csv_valid
         # test_data = splitted_data_csv_test
-    
+
         # Calculate batch_size and steps_per_epoch
         if batch_size is not None and steps_per_epoch is None:
             steps_per_epoch = int((len(data_csv) + 1) / batch_size)
         if batch_size is None and steps_per_epoch is not None:
             batch_size = int((len(data_csv) + 1) / steps_per_epoch)
 
-
+        images = list(set([data_csv[i][0] for i in range(len(data_csv))]))
         # Creates 3 generators for train validation and test, image augmentation only done for training set
+
         train_batch_gen = image_batch_generator(img_dir,
                                                 data_csv,
                                                 steps_per_epoch,
@@ -2351,5 +2407,7 @@ class datagen:
         #                                        batch_size,
         #                                        img_sz=img_sz
         #                                        )
-        #return train_batch_gen, valid_batch_gen, test_batch_gen   
-        return train_batch_gen
+        # return train_batch_gen, valid_batch_gen, test_batch_gen
+        total_img = len(images)
+
+        return train_batch_gen, total_img
