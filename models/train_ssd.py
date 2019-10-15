@@ -50,7 +50,7 @@ val_image_dir     = 'img_val/'
 img_height = 300
 img_width = 300
 
-batch_size = 5
+batch_size = 20
 
 predictor_sizes = [model.get_layer('classes1').output_shape[1:3],
                    model.get_layer('classes2').output_shape[1:3],
