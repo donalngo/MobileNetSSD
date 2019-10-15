@@ -1,8 +1,10 @@
+from math import ceil
 from keras import backend as K
 
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import losses
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler, TerminateOnNaN, CSVLogger
+import glob
 
 from keras_ssd import build_model
 from keras_ssd import SSDLoss
@@ -32,26 +34,21 @@ model.compile(optimizer=adam, loss=ssd_loss.compute_loss)
 model.summary()
 
 
-#%% Block 2: Option 2 Load Pre-train model
 
-#model_path = 'path/to/trained/model.h5'
-#
-#ssd_loss = compute_loss(neg_pos_ratio=3,n_neg_min=0,alpha=1.0)
-#
-#K.clear_session() # Clear previous models from memory.
-#
-#model = load_model(model_path, custom_objects={'AnchorBoxes': AnchorBoxes,
-#                                               'L2Normalization': L2Normalization,
-#                                               'compute_loss': ssd_loss})
+#%% Block 3: 
+a = '/Teerapong/3. Github/1. NUS Masters/CA1 MobileNet SSD/MobileNetSSD/models/img_train/*'
 
 #%% Block 3: 
 
 # Directories
-train_image_dir     = '/Teerapong/3. Github/1. NUS Masters/CA/MobileNetSSD/models/img_train/'
+#train_image_dir     = '/Teerapong/3. Github/1. NUS Masters/CA/MobileNetSSD/models/img_train/'
+train_image_dir     = '/Teerapong/3. Github/1. NUS Masters/CA1 MobileNet SSD/MobileNetSSD/models/img_train/'
+val_image_dir     = '/Teerapong/3. Github/1. NUS Masters/CA1 MobileNet SSD/MobileNetSSD/models/img_val/'
 
 img_height = 300
 img_width = 300
 n_classes = 3
+batch_size = 5
 
 predictor_sizes = [model.get_layer('classes1').output_shape[1:3],
                    model.get_layer('classes2').output_shape[1:3],
@@ -60,12 +57,12 @@ predictor_sizes = [model.get_layer('classes1').output_shape[1:3],
                    model.get_layer('classes5').output_shape[1:3],
                    model.get_layer('classes6').output_shape[1:3]]
 
-#aspect_ratios = [[1.0, 2.0, 0.5],
-#                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
-#                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
-#                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
-#                 [1.0, 2.0, 0.5],
-#                 [1.0, 2.0, 0.5]]
+aspect_ratios = [[1.0, 2.0, 0.5],
+                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
+                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
+                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
+                 [1.0, 2.0, 0.5],
+                 [1.0, 2.0, 0.5]]
 
 
 label_encoder = SSDInputEncoder(img_height,
@@ -75,17 +72,20 @@ label_encoder = SSDInputEncoder(img_height,
                                 min_scale=0.1,
                                 max_scale=0.9,
                                 aspect_ratios=[0.5, 1.0, 2.0],
+                                #aspect_ratios=aspect_ratios,
                                 pos_iou_threshold=0.5,
                                 neg_iou_limit=0.3,
                                 border_pixels='half',
                                 normalize_coords=True,
                                 background_id=0)
 
-train_dataset = datagen.data_generator(img_dir = train_image_dir, xml_dir = train_image_dir, batch_size=10, steps_per_epoch=None, img_sz=300, label_encoder=label_encoder,
+train_dataset = datagen.data_generator(img_dir = train_image_dir, xml_dir = train_image_dir, batch_size=batch_size, steps_per_epoch=None, img_sz=300, label_encoder=label_encoder,
                        translate=0, rotate=0, scale=1, shear=0, hor_flip=True, ver_flip=False)
+val_dataset = datagen.data_generator(img_dir = val_image_dir, xml_dir = val_image_dir, batch_size=batch_size, steps_per_epoch=None, img_sz=300, label_encoder=label_encoder,
+                       translate=0, rotate=0, scale=1, shear=0, hor_flip=False, ver_flip=False)
 
-train_dataset
-
+#%% Block 4
+predictor_sizes
 
 #%% Block 4
 
@@ -135,13 +135,13 @@ callbacks = [learning_rate_scheduler,
 initial_epoch   = 0
 final_epoch     = 120
 steps_per_epoch = 1000
+val_dataset_size = 10
 
 history = model.fit_generator(generator=train_dataset,
-                              validation_data=train_dataset,
-                              validation_steps=2,
+                              validation_data=val_dataset,
+                              validation_steps=ceil(val_dataset_size/batch_size),
                               steps_per_epoch=steps_per_epoch,
-                              epochs=final_epoch,
-                              callbacks=callbacks)
+                              epochs=final_epoch)
 
 #history = model.fit_generator(generator=train_dataset,
 #                              steps_per_epoch=steps_per_epoch,

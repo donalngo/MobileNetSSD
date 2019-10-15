@@ -1,6 +1,6 @@
 from keras_ssd import datagen
 from keras_ssd import SSDInputEncoder
-train_image_dir ="MnF/"
+train_image_dir ="/Teerapong/3. Github/1. NUS Masters/MobileNetSSD/models/img_val/"
 
 predictor_sz = [(38,38),(19,19),(10,10),(5,5),(3,3),(1,1)]
 label_encoder = SSDInputEncoder(300,300,3,predictor_sz)
