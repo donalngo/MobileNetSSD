@@ -2337,7 +2337,7 @@ class datagen:
                                                 shear=shear,
                                                 hor_flip=hor_flip,
                                                 ver_flip=ver_flip)
-    
+
         # valid_batch_gen = image_batch_generator(img_dir,
         #                                         splitted_data_csv_valid,
         #                                         steps_per_epoch,

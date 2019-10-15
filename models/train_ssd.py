@@ -1,9 +1,13 @@
 from keras import backend as K
-from keras_ssd import build_model
-from keras_ssd import SSDLoss
+
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import losses
+from keras.callbacks import ModelCheckpoint, LearningRateScheduler, TerminateOnNaN, CSVLogger
+
+from keras_ssd import build_model
+from keras_ssd import SSDLoss
 from keras_ssd import datagen
+from keras_ssd import SSDInputEncoder
 
 
 model = build_model((300,300,3),
@@ -43,7 +47,7 @@ model.summary()
 #%% Block 3: 
 
 # Directories
-train_image_dir     = '/img_train/'
+train_image_dir     = '/Teerapong/3. Github/1. NUS Masters/CA/MobileNetSSD/models/img_train/'
 
 img_height = 300
 img_width = 300
@@ -78,7 +82,10 @@ label_encoder = SSDInputEncoder(img_height,
                                 background_id=0)
 
 train_dataset = datagen.data_generator(img_dir = train_image_dir, xml_dir = train_image_dir, batch_size=10, steps_per_epoch=None, img_sz=300, label_encoder=label_encoder,
-                       translate=0, rotate=0, scale=0, shear=0, hor_flip=True, ver_flip=False)
+                       translate=0, rotate=0, scale=1, shear=0, hor_flip=True, ver_flip=False)
+
+train_dataset
+
 
 #%% Block 4
 
@@ -96,27 +103,30 @@ def lr_schedule(epoch):
 # Define model callbacks.
 
 # TODO: Set the filepath under which you want to save the model.
-model_checkpoint = ModelCheckpoint(filepath='ssd300_pascal_07+12_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
-                                   monitor='val_loss',
-                                   verbose=1,
-                                   save_best_only=True,
-                                   save_weights_only=False,
-                                   mode='auto',
-                                   period=1)
+#model_checkpoint = ModelCheckpoint(filepath='ssd300_pascal_07+12_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
+#                                   monitor='val_loss',
+#                                   verbose=1,
+#                                   save_best_only=True,
+#                                   save_weights_only=False,
+#                                   mode='auto',
+#                                   period=1)
 #model_checkpoint.best = 
 
-csv_logger = CSVLogger(filename='ssd300_pascal_07+12_training_log.csv',
-                       separator=',',
-                       append=True)
+#csv_logger = CSVLogger(filename='ssd300_pascal_07+12_training_log.csv',
+#                       separator=',',
+#                       append=True)
 
 learning_rate_scheduler = LearningRateScheduler(schedule=lr_schedule,
                                                 verbose=1)
 
 terminate_on_nan = TerminateOnNaN()
 
-callbacks = [model_checkpoint,
-             csv_logger,
-             learning_rate_scheduler,
+#callbacks = [model_checkpoint,
+#             csv_logger,
+#             learning_rate_scheduler,
+#             terminate_on_nan]
+
+callbacks = [learning_rate_scheduler,
              terminate_on_nan]
 
 #%% Block 5: Training
@@ -127,10 +137,11 @@ final_epoch     = 120
 steps_per_epoch = 1000
 
 history = model.fit_generator(generator=train_dataset,
+                              validation_data=train_dataset,
+                              validation_steps=2,
                               steps_per_epoch=steps_per_epoch,
                               epochs=final_epoch,
-                              callbacks=callbacks,
-                              initial_epoch=initial_epoch)
+                              callbacks=callbacks)
 
 #history = model.fit_generator(generator=train_dataset,
 #                              steps_per_epoch=steps_per_epoch,
