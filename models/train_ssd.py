@@ -13,11 +13,12 @@ from keras_ssd import SSDInputEncoder
 
 
 model = build_model((300,300,3),
-                3,
+                2,
                 l2_regularization=0.0,
                 min_scale=0.2,
                 max_scale=0.9,
-                aspect_ratios=[1,2,3,0.5,0.33],
+                #aspect_ratios=[1,2,3,0.5,0.33],
+                aspect_ratios=[0.5, 1.0, 2.0],
                 normalize_coords=False,
                 subtract_mean=None,
                 divide_by_stddev=None)
@@ -84,8 +85,6 @@ train_dataset = datagen.data_generator(img_dir = train_image_dir, xml_dir = trai
 val_dataset = datagen.data_generator(img_dir = val_image_dir, xml_dir = val_image_dir, batch_size=batch_size, steps_per_epoch=None, img_sz=300, label_encoder=label_encoder,
                        translate=0, rotate=0, scale=1, shear=0, hor_flip=False, ver_flip=False)
 
-#%% Block 4
-predictor_sizes
 
 #%% Block 4
 
@@ -150,6 +149,13 @@ history = model.fit_generator(generator=train_dataset,
 #                              validation_data=val_generator,
 #                              validation_steps=ceil(val_dataset_size/batch_size),
 #                              initial_epoch=initial_epoch)
+
+#%%
+for l in range(len(model.layers)):
+    print(l)
+    print(model.layers[l])
+    print(model.layers[l].name)
+    print(model.layers[l].output)
 
 #%% Block 7a: Predictions on Test Image (With labels)
 

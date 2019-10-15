@@ -1403,7 +1403,7 @@ class AnchorBoxes(Layer):
 
         # We need the shape of the input tensor
 
-        batch_size, feature_map_channels, feature_map_height, feature_map_width = K.int_shape(x)
+        batch_size, feature_map_height, feature_map_width, feature_map_channels = K.int_shape(x)
 
         # Compute the grid of box center points. They are identical for all aspect ratios.
 
@@ -1658,7 +1658,7 @@ def build_model(image_size,
                 l2_regularization=0.0,
                 min_scale=0.2,
                 max_scale=0.9,
-                aspect_ratios=[1, 2, 3, 0.5, 0.33],
+                aspect_ratios=[0.5, 1.0, 2.0],
                 normalize_coords=False,
                 subtract_mean=None,
                 divide_by_stddev=None):
@@ -1809,9 +1809,9 @@ def build_model(image_size,
     ############################################################################
 
     # Set the aspect ratios for each predictor layer. These are only needed for the anchor box layers.
-
-    aspect_ratios = [aspect_ratios] * n_predictor_layers
     n_boxes = len(aspect_ratios) + 1
+    aspect_ratios = [aspect_ratios] * n_predictor_layers
+    
     n_boxes = [n_boxes] * n_predictor_layers
 
     ############################################################################
