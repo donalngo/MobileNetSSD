@@ -8,7 +8,7 @@ from tensorflow.keras.regularizers import l2
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.nn import relu6
 import tensorflow.keras.backend as K
-from keras_layer_L2Normalization import L2Normalization
+#from keras_layer_L2Normalization import L2Normalization
 
 # from keras_layers.keras_layer_AnchorBoxes import AnchorBoxes
 # from keras_layers.keras_layer_DecodeDetections import DecodeDetections
