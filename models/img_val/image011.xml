@@ -1,0 +1,38 @@
+<annotation>
+	<folder>Batch 2 (Pascal)</folder>
+	<filename>image011.jpg</filename>
+	<path>C:\Teerapong\1. NUS Masters\3. Sensing Systems\CA1\Images\Batch 2 (Pascal)\image011.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>2016</width>
+		<height>1512</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>1</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>1118</xmin>
+			<ymin>451</ymin>
+			<xmax>1589</xmax>
+			<ymax>864</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>1</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>83</xmin>
+			<ymin>293</ymin>
+			<xmax>881</xmax>
+			<ymax>1280</ymax>
+		</bndbox>
+	</object>
+</annotation>
