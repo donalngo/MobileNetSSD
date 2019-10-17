@@ -1,0 +1,26 @@
+<annotation>
+	<folder>MnF</folder>
+	<filename>IMG_20191003_143053.jpg</filename>
+	<path>/home/donalngo/Pictures/MnF/IMG_20191003_143053.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>3968</width>
+		<height>2976</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>1</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>886</xmin>
+			<ymin>919</ymin>
+			<xmax>3719</xmax>
+			<ymax>2003</ymax>
+		</bndbox>
+	</object>
+</annotation>
