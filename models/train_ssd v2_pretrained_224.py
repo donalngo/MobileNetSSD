@@ -46,13 +46,11 @@ normalize_coords = False
 
 model = build_model((img_height,img_width,img_channels),
                 n_classes,
-                l2_regularization=0.0,
+                l2_reg=0.0,
                 min_scale=min_scale,
                 max_scale=max_scale,
                 aspect_ratios=aspect_ratio,
-                normalize_coords=normalize_coords,
-                subtract_mean=None,
-                divide_by_stddev=None)
+                normalize_coords=normalize_coords)
 
 #%% Block 2: Creating a new model
 
@@ -98,7 +96,6 @@ label_encoder = SSDInputEncoder(img_height,
                                 aspect_ratios=aspect_ratio,
                                 pos_iou_threshold=0.5,
                                 neg_iou_limit=0.3,
-                                border_pixels='half',
                                 normalize_coords=normalize_coords,
                                 background_id=0)
 

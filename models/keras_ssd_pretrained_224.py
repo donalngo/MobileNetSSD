@@ -8,11 +8,7 @@ from tensorflow.keras.regularizers import l2
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.nn import relu6
 import tensorflow.keras.backend as K
-#from keras_layer_L2Normalization import L2Normalization
 
-# from keras_layers.keras_layer_AnchorBoxes import AnchorBoxes
-# from keras_layers.keras_layer_DecodeDetections import DecodeDetections
-# from keras_layers.keras_layer_DecodeDetectionsFast import DecodeDetectionsFast
 
 import imgaug as ia
 import imgaug.augmenters as iaa
@@ -27,28 +23,7 @@ import glob
 ### Bounding Boxes Utilities
 ########################################################
 
-'''
-Includes:
-* Function to compute the IoU similarity for axis-aligned, rectangular, 2D bounding boxes
-* Function for coordinate conversion for axis-aligned, rectangular, 2D bounding boxes
-
-Copyright (C) 2018 Pierluigi Ferrari
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-'''
-
-
-def convert_coordinates(tensor, start_index, conversion, border_pixels='half'):
+def convert_coordinates(tensor, start_index, conversion):
     '''
     Convert coordinates for axis-aligned 2D boxes between two coordinate formats.
 
@@ -65,23 +40,14 @@ def convert_coordinates(tensor, start_index, conversion, border_pixels='half'):
         conversion (str, optional): The conversion direction. Can be 'minmax2centroids',
             'centroids2minmax', 'corners2centroids', 'centroids2corners', 'minmax2corners',
             or 'corners2minmax'.
-        border_pixels (str, optional): How to treat the border pixels of the bounding boxes.
-            Can be 'include', 'exclude', or 'half'. If 'include', the border pixels belong
-            to the boxes. If 'exclude', the border pixels do not belong to the boxes.
-            If 'half', then one of each of the two horizontal and vertical borders belong
-            to the boxex, but not the other.
 
     Returns:
         A Numpy nD array, a copy of the input tensor with the converted coordinates
         in place of the original coordinates and the unaltered elements of the original
         tensor elsewhere.
     '''
-    if border_pixels == 'half':
-        d = 0
-    elif border_pixels == 'include':
-        d = 1
-    elif border_pixels == 'exclude':
-        d = -1
+
+    d = 0
 
     ind = start_index
     tensor1 = np.copy(tensor).astype(np.float)
@@ -146,7 +112,7 @@ def convert_coordinates2(tensor, start_index, conversion):
     return tensor1
 
 
-def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels='half'):
+def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product'):
     '''
     Computes the intersection areas of two sets of axis-aligned 2D rectangular boxes.
 
@@ -173,11 +139,7 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
             `n` boxes in `boxes2`. In 'element-wise' mode, returns a 1D array and the shapes of `boxes1` and `boxes2`
             must be boadcast-compatible. If both `boxes1` and `boxes2` have `m` boxes, then this returns an array of
             length `m` where the i-th position contains the intersection area of `boxes1[i]` with `boxes2[i]`.
-        border_pixels (str, optional): How to treat the border pixels of the bounding boxes.
-            Can be 'include', 'exclude', or 'half'. If 'include', the border pixels belong
-            to the boxes. If 'exclude', the border pixels do not belong to the boxes.
-            If 'half', then one of each of the two horizontal and vertical borders belong
-            to the boxex, but not the other.
+
 
     Returns:
         A 1D or 2D Numpy array (refer to the `mode` argument for details) of dtype float containing values with
@@ -220,13 +182,7 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
         ymin = 2
         ymax = 3
 
-    if border_pixels == 'half':
-        d = 0
-    elif border_pixels == 'include':
-        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
-    elif border_pixels == 'exclude':
-        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
-
+    d = 0
     # Compute the intersection areas.
 
     if mode == 'outer_product':
@@ -257,7 +213,7 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
         return side_lengths[:, 0] * side_lengths[:, 1]
 
 
-def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', border_pixels='half'):
+def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product'):
     '''
     The same as 'intersection_area()' but for internal use, i.e. without all the safety checks.
     '''
@@ -277,13 +233,7 @@ def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', b
         ymin = 2
         ymax = 3
 
-    if border_pixels == 'half':
-        d = 0
-    elif border_pixels == 'include':
-        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
-    elif border_pixels == 'exclude':
-        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
-
+    d = 0
     # Compute the intersection areas.
 
     if mode == 'outer_product':
@@ -314,7 +264,7 @@ def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', b
         return side_lengths[:, 0] * side_lengths[:, 1]
 
 
-def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels='half'):
+def iou(boxes1, boxes2, coords='centroids', mode='outer_product'):
     '''
     Computes the intersection-over-union similarity (also known as Jaccard similarity)
     of two sets of axis-aligned 2D rectangular boxes.
@@ -342,11 +292,7 @@ def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels=
             `n` boxes in `boxes2`. In 'element-wise' mode, returns a 1D array and the shapes of `boxes1` and `boxes2`
             must be boadcast-compatible. If both `boxes1` and `boxes2` have `m` boxes, then this returns an array of
             length `m` where the i-th position contains the IoU overlap of `boxes1[i]` with `boxes2[i]`.
-        border_pixels (str, optional): How to treat the border pixels of the bounding boxes.
-            Can be 'include', 'exclude', or 'half'. If 'include', the border pixels belong
-            to the boxes. If 'exclude', the border pixels do not belong to the boxes.
-            If 'half', then one of each of the two horizontal and vertical borders belong
-            to the boxex, but not the other.
+
 
     Returns:
         A 1D or 2D Numpy array (refer to the `mode` argument for details) of dtype float containing values in [0,1],
@@ -398,12 +344,7 @@ def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels=
         ymin = 2
         ymax = 3
 
-    if border_pixels == 'half':
-        d = 0
-    elif border_pixels == 'include':
-        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
-    elif border_pixels == 'exclude':
-        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
+    d = 0
 
     if mode == 'outer_product':
 
@@ -453,7 +394,7 @@ import tensorflow as tf
 
 # from bounding_box_utils.bounding_box_utils import convert_coordinates
 
-def convert_coordinates(tensor, start_index, conversion, border_pixels='half'):
+def convert_coordinates(tensor, start_index, conversion):
     '''
     Convert coordinates for axis-aligned 2D boxes between two coordinate formats.
 
@@ -470,24 +411,14 @@ def convert_coordinates(tensor, start_index, conversion, border_pixels='half'):
         conversion (str, optional): The conversion direction. Can be 'minmax2centroids',
             'centroids2minmax', 'corners2centroids', 'centroids2corners', 'minmax2corners',
             or 'corners2minmax'.
-        border_pixels (str, optional): How to treat the border pixels of the bounding boxes.
-            Can be 'include', 'exclude', or 'half'. If 'include', the border pixels belong
-            to the boxes. If 'exclude', the border pixels do not belong to the boxes.
-            If 'half', then one of each of the two horizontal and vertical borders belong
-            to the boxex, but not the other.
 
     Returns:
         A Numpy nD array, a copy of the input tensor with the converted coordinates
         in place of the original coordinates and the unaltered elements of the original
         tensor elsewhere.
     '''
-    if border_pixels == 'half':
-        d = 0
-    elif border_pixels == 'include':
-        d = 1
-    elif border_pixels == 'exclude':
-        d = -1
 
+    d = 0
     ind = start_index
     tensor1 = np.copy(tensor).astype(np.float)
     if conversion == 'minmax2centroids':
@@ -551,7 +482,7 @@ def convert_coordinates2(tensor, start_index, conversion):
     return tensor1
 
 
-def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels='half'):
+def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product'):
     '''
     Computes the intersection areas of two sets of axis-aligned 2D rectangular boxes.
 
@@ -578,11 +509,6 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
             `n` boxes in `boxes2`. In 'element-wise' mode, returns a 1D array and the shapes of `boxes1` and `boxes2`
             must be boadcast-compatible. If both `boxes1` and `boxes2` have `m` boxes, then this returns an array of
             length `m` where the i-th position contains the intersection area of `boxes1[i]` with `boxes2[i]`.
-        border_pixels (str, optional): How to treat the border pixels of the bounding boxes.
-            Can be 'include', 'exclude', or 'half'. If 'include', the border pixels belong
-            to the boxes. If 'exclude', the border pixels do not belong to the boxes.
-            If 'half', then one of each of the two horizontal and vertical borders belong
-            to the boxex, but not the other.
 
     Returns:
         A 1D or 2D Numpy array (refer to the `mode` argument for details) of dtype float containing values with
@@ -625,13 +551,7 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
         ymin = 2
         ymax = 3
 
-    if border_pixels == 'half':
-        d = 0
-    elif border_pixels == 'include':
-        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
-    elif border_pixels == 'exclude':
-        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
-
+    d = 0
     # Compute the intersection areas.
 
     if mode == 'outer_product':
@@ -662,7 +582,7 @@ def intersection_area(boxes1, boxes2, coords='centroids', mode='outer_product', 
         return side_lengths[:, 0] * side_lengths[:, 1]
 
 
-def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', border_pixels='half'):
+def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product'):
     '''
     The same as 'intersection_area()' but for internal use, i.e. without all the safety checks.
     '''
@@ -682,13 +602,7 @@ def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', b
         ymin = 2
         ymax = 3
 
-    if border_pixels == 'half':
-        d = 0
-    elif border_pixels == 'include':
-        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
-    elif border_pixels == 'exclude':
-        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
-
+    d = 0
     # Compute the intersection areas.
 
     if mode == 'outer_product':
@@ -717,116 +631,6 @@ def intersection_area_(boxes1, boxes2, coords='corners', mode='outer_product', b
         side_lengths = np.maximum(0, max_xy - min_xy + d)
 
         return side_lengths[:, 0] * side_lengths[:, 1]
-
-
-def iou(boxes1, boxes2, coords='centroids', mode='outer_product', border_pixels='half'):
-    '''
-    Computes the intersection-over-union similarity (also known as Jaccard similarity)
-    of two sets of axis-aligned 2D rectangular boxes.
-
-    Let `boxes1` and `boxes2` contain `m` and `n` boxes, respectively.
-
-    In 'outer_product' mode, returns an `(m,n)` matrix with the IoUs for all possible
-    combinations of the boxes in `boxes1` and `boxes2`.
-
-    In 'element-wise' mode, `m` and `n` must be broadcast-compatible. Refer to the explanation
-    of the `mode` argument for details.
-
-    Arguments:
-        boxes1 (array): Either a 1D Numpy array of shape `(4, )` containing the coordinates for one box in the
-            format specified by `coords` or a 2D Numpy array of shape `(m, 4)` containing the coordinates for `m` boxes.
-            If `mode` is set to 'element_wise', the shape must be broadcast-compatible with `boxes2`.
-        boxes2 (array): Either a 1D Numpy array of shape `(4, )` containing the coordinates for one box in the
-            format specified by `coords` or a 2D Numpy array of shape `(n, 4)` containing the coordinates for `n` boxes.
-            If `mode` is set to 'element_wise', the shape must be broadcast-compatible with `boxes1`.
-        coords (str, optional): The coordinate format in the input arrays. Can be either 'centroids' for the format
-            `(cx, cy, w, h)`, 'minmax' for the format `(xmin, xmax, ymin, ymax)`, or 'corners' for the format
-            `(xmin, ymin, xmax, ymax)`.
-        mode (str, optional): Can be one of 'outer_product' and 'element-wise'. In 'outer_product' mode, returns an
-            `(m,n)` matrix with the IoU overlaps for all possible combinations of the `m` boxes in `boxes1` with the
-            `n` boxes in `boxes2`. In 'element-wise' mode, returns a 1D array and the shapes of `boxes1` and `boxes2`
-            must be boadcast-compatible. If both `boxes1` and `boxes2` have `m` boxes, then this returns an array of
-            length `m` where the i-th position contains the IoU overlap of `boxes1[i]` with `boxes2[i]`.
-        border_pixels (str, optional): How to treat the border pixels of the bounding boxes.
-            Can be 'include', 'exclude', or 'half'. If 'include', the border pixels belong
-            to the boxes. If 'exclude', the border pixels do not belong to the boxes.
-            If 'half', then one of each of the two horizontal and vertical borders belong
-            to the boxex, but not the other.
-
-    Returns:
-        A 1D or 2D Numpy array (refer to the `mode` argument for details) of dtype float containing values in [0,1],
-        the Jaccard similarity of the boxes in `boxes1` and `boxes2`. 0 means there is no overlap between two given
-        boxes, 1 means their coordinates are identical.
-    '''
-
-    # Make sure the boxes have the right shapes.
-    if boxes1.ndim > 2: raise ValueError("boxes1 must have rank either 1 or 2, but has rank {}.".format(boxes1.ndim))
-    if boxes2.ndim > 2: raise ValueError("boxes2 must have rank either 1 or 2, but has rank {}.".format(boxes2.ndim))
-
-    if boxes1.ndim == 1: boxes1 = np.expand_dims(boxes1, axis=0)
-    if boxes2.ndim == 1: boxes2 = np.expand_dims(boxes2, axis=0)
-
-    if not (boxes1.shape[1] == boxes2.shape[1] == 4): raise ValueError(
-        "All boxes must consist of 4 coordinates, but the boxes in `boxes1` and `boxes2` have {} and {} coordinates, respectively.".format(
-            boxes1.shape[1], boxes2.shape[1]))
-    if not mode in {'outer_product', 'element-wise'}: raise ValueError(
-        "`mode` must be one of 'outer_product' and 'element-wise', but got '{}'.".format(mode))
-
-    # Convert the coordinates if necessary.
-    if coords == 'centroids':
-        boxes1 = convert_coordinates(boxes1, start_index=0, conversion='centroids2corners')
-        boxes2 = convert_coordinates(boxes2, start_index=0, conversion='centroids2corners')
-        coords = 'corners'
-    elif not (coords in {'minmax', 'corners'}):
-        raise ValueError("Unexpected value for `coords`. Supported values are 'minmax', 'corners' and 'centroids'.")
-
-    # Compute the IoU.
-
-    # Compute the interesection areas.
-
-    intersection_areas = intersection_area_(boxes1, boxes2, coords=coords, mode=mode)
-
-    m = boxes1.shape[0]  # The number of boxes in `boxes1`
-    n = boxes2.shape[0]  # The number of boxes in `boxes2`
-
-    # Compute the union areas.
-
-    # Set the correct coordinate indices for the respective formats.
-    if coords == 'corners':
-        xmin = 0
-        ymin = 1
-        xmax = 2
-        ymax = 3
-    elif coords == 'minmax':
-        xmin = 0
-        xmax = 1
-        ymin = 2
-        ymax = 3
-
-    if border_pixels == 'half':
-        d = 0
-    elif border_pixels == 'include':
-        d = 1  # If border pixels are supposed to belong to the bounding boxes, we have to add one pixel to any difference `xmax - xmin` or `ymax - ymin`.
-    elif border_pixels == 'exclude':
-        d = -1  # If border pixels are not supposed to belong to the bounding boxes, we have to subtract one pixel from any difference `xmax - xmin` or `ymax - ymin`.
-
-    if mode == 'outer_product':
-
-        boxes1_areas = np.tile(
-            np.expand_dims((boxes1[:, xmax] - boxes1[:, xmin] + d) * (boxes1[:, ymax] - boxes1[:, ymin] + d), axis=1),
-            reps=(1, n))
-        boxes2_areas = np.tile(
-            np.expand_dims((boxes2[:, xmax] - boxes2[:, xmin] + d) * (boxes2[:, ymax] - boxes2[:, ymin] + d), axis=0),
-            reps=(m, 1))
-
-    elif mode == 'element-wise':
-
-        boxes1_areas = (boxes1[:, xmax] - boxes1[:, xmin] + d) * (boxes1[:, ymax] - boxes1[:, ymin] + d)
-        boxes2_areas = (boxes2[:, xmax] - boxes2[:, xmin] + d) * (boxes2[:, ymax] - boxes2[:, ymin] + d)
-
-    union_areas = boxes1_areas + boxes2_areas - intersection_areas
-
-    return intersection_areas / union_areas
 
 
 def match_bipartite_greedy(weight_matrix):
@@ -943,7 +747,6 @@ class SSDInputEncoder:
                  aspect_ratios=[0.5, 1.0, 2.0],
                  pos_iou_threshold=0.5,
                  neg_iou_limit=0.3,
-                 border_pixels='half',
                  normalize_coords=True,
                  background_id=0):
         '''
@@ -973,11 +776,6 @@ class SSDInputEncoder:
             neg_iou_limit (float, optional): The maximum allowed intersection-over-union similarity of an
                 anchor box with any ground truth box to be labeled a negative (i.e. background) box. If an
                 anchor box is neither a positive, nor a negative box, it will be ignored during training.
-            border_pixels (str, optional): How to treat the border pixels of the bounding boxes.
-                Can be 'include', 'exclude', or 'half'. If 'include', the border pixels belong
-                to the boxes. If 'exclude', the border pixels do not belong to the boxes.
-                If 'half', then one of each of the two horizontal and vertical borders belong
-                to the boxex, but not the other.
             coords (str, optional): The box coordinate format to be used internally by the model (i.e. this is not the input format
                 of the ground truth labels). Can be either 'centroids' for the format `(cx, cy, w, h)` (box center coordinates, width,
                 and height), 'minmax' for the format `(xmin, xmax, ymin, ymax)`, or 'corners' for the format `(xmin, ymin, xmax, ymax)`.
@@ -990,7 +788,6 @@ class SSDInputEncoder:
         two_boxes_for_ar1 = True,
         predictor_sizes = np.array(predictor_sizes)
         coords = 'centroids'
-        clip_boxes = True
         if predictor_sizes.ndim == 1:
             predictor_sizes = np.expand_dims(predictor_sizes, axis=0)
 
@@ -1016,11 +813,9 @@ class SSDInputEncoder:
         self.scales = np.linspace(self.min_scale, self.max_scale, len(self.predictor_sizes) + 1)
         self.aspect_ratios = [aspect_ratios] * predictor_sizes.shape[0]
         self.two_boxes_for_ar1 = two_boxes_for_ar1
-        self.clip_boxes = clip_boxes
         self.variances = variances
         self.pos_iou_threshold = pos_iou_threshold
         self.neg_iou_limit = neg_iou_limit
-        self.border_pixels = border_pixels
         self.coords = coords
         self.normalize_coords = normalize_coords
         self.background_id = background_id
@@ -1084,10 +879,7 @@ class SSDInputEncoder:
 
             # convert the box coordinate format if needed
             if self.coords == 'centroids':
-                labels = convert_coordinates(labels, start_index=xmin, conversion='corners2centroids',
-                                             border_pixels=self.border_pixels)
-            elif self.coords == 'minmax':
-                labels = convert_coordinates(labels, start_index=xmin, conversion='corners2minmax')
+                labels = convert_coordinates(labels, start_index=xmin, conversion='corners2centroids')
 
             classes_one_hot = class_vectors[labels[:, class_id].astype(
                 np.int)]  # The one-hot class IDs for the ground truth boxes of this batch item
@@ -1097,7 +889,7 @@ class SSDInputEncoder:
             # Compute the IoU similarities between all anchor boxes and all ground truth boxes for this batch item.
             # This is a matrix of shape `(num_ground_truth_boxes, num_anchor_boxes)`.
             similarities = iou(labels[:, [xmin, ymin, xmax, ymax]], y_encoded[i, :, -12:-8], coords=self.coords,
-                               mode='outer_product', border_pixels=self.border_pixels)
+                               mode='outer_product')
 
             # 2.1 For each ground truth box, get the anchor box with highest IOU even if less than pos_iou_threshold.
             bipartite_matches = match_bipartite_greedy(weight_matrix=similarities)
@@ -1125,28 +917,9 @@ class SSDInputEncoder:
 
         if self.coords == 'centroids':
             y_encoded[:, :, [-12, -11]] -= y_encoded[:, :, [-8, -7]]  # cx(gt) - cx(anchor), cy(gt) - cy(anchor)
-            y_encoded[:, :, [-12, -11]] /= y_encoded[:, :, [-6, -5]] * y_encoded[:, :, [-4,
-                                                                                        -3]]  # (cx(gt) - cx(anchor)) / w(anchor) / cx_variance, (cy(gt) - cy(anchor)) / h(anchor) / cy_variance
+            y_encoded[:, :, [-12, -11]] /= y_encoded[:, :, [-6, -5]] * y_encoded[:, :, [-4,-3]]  # (cx(gt) - cx(anchor)) / w(anchor) / cx_variance, (cy(gt) - cy(anchor)) / h(anchor) / cy_variance
             y_encoded[:, :, [-10, -9]] /= y_encoded[:, :, [-6, -5]]  # w(gt) / w(anchor), h(gt) / h(anchor)
-            y_encoded[:, :, [-10, -9]] = np.log(y_encoded[:, :, [-10, -9]]) / y_encoded[:, :, [-2,
-                                                                                               -1]]  # ln(w(gt) / w(anchor)) / w_variance, ln(h(gt) / h(anchor)) / h_variance (ln == natural logarithm)
-        elif self.coords == 'corners':
-            y_encoded[:, :, -12:-8] -= y_encoded[:, :, -8:-4]  # (gt - anchor) for all four coordinates
-            y_encoded[:, :, [-12, -10]] /= np.expand_dims(y_encoded[:, :, -6] - y_encoded[:, :, -8],
-                                                          axis=-1)  # (xmin(gt) - xmin(anchor)) / w(anchor), (xmax(gt) - xmax(anchor)) / w(anchor)
-            y_encoded[:, :, [-11, -9]] /= np.expand_dims(y_encoded[:, :, -5] - y_encoded[:, :, -7],
-                                                         axis=-1)  # (ymin(gt) - ymin(anchor)) / h(anchor), (ymax(gt) - ymax(anchor)) / h(anchor)
-            y_encoded[:, :, -12:-8] /= y_encoded[:, :,
-                                       -4:]  # (gt - anchor) / size(anchor) / variance for all four coordinates, where 'size' refers to w and h respectively
-        elif self.coords == 'minmax':
-            y_encoded[:, :, -12:-8] -= y_encoded[:, :, -8:-4]  # (gt - anchor) for all four coordinates
-            y_encoded[:, :, [-12, -11]] /= np.expand_dims(y_encoded[:, :, -7] - y_encoded[:, :, -8],
-                                                          axis=-1)  # (xmin(gt) - xmin(anchor)) / w(anchor), (xmax(gt) - xmax(anchor)) / w(anchor)
-            y_encoded[:, :, [-10, -9]] /= np.expand_dims(y_encoded[:, :, -5] - y_encoded[:, :, -6],
-                                                         axis=-1)  # (ymin(gt) - ymin(anchor)) / h(anchor), (ymax(gt) - ymax(anchor)) / h(anchor)
-            y_encoded[:, :, -12:-8] /= y_encoded[:, :,
-                                       -4:]  # (gt - anchor) / size(anchor) / variance for all four coordinates, where 'size' refers to w and h respectively
-
+            y_encoded[:, :, [-10, -9]] = np.log(y_encoded[:, :, [-10, -9]]) / y_encoded[:, :, [-2,-1]]  # ln(w(gt) / w(anchor)) / w_variance, ln(h(gt) / h(anchor)) / h_variance (ln == natural logarithm)
         return y_encoded
 
     def generate_anchor_boxes_for_layer(self,
@@ -1224,16 +997,15 @@ class SSDInputEncoder:
         # Convert `(cx, cy, w, h)` to `(xmin, ymin, xmax, ymax)`
         boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='centroids2corners')
 
-        # If `clip_boxes` is enabled, clip the coordinates to lie within the image boundaries
-        if self.clip_boxes:
-            x_coords = boxes_tensor[:, :, :, [0, 2]]
-            x_coords[x_coords >= self.img_width] = self.img_width - 1
-            x_coords[x_coords < 0] = 0
-            boxes_tensor[:, :, :, [0, 2]] = x_coords
-            y_coords = boxes_tensor[:, :, :, [1, 3]]
-            y_coords[y_coords >= self.img_height] = self.img_height - 1
-            y_coords[y_coords < 0] = 0
-            boxes_tensor[:, :, :, [1, 3]] = y_coords
+        # clip the coordinates to lie within the image boundaries
+        x_coords = boxes_tensor[:, :, :, [0, 2]]
+        x_coords[x_coords >= self.img_width] = self.img_width - 1
+        x_coords[x_coords < 0] = 0
+        boxes_tensor[:, :, :, [0, 2]] = x_coords
+        y_coords = boxes_tensor[:, :, :, [1, 3]]
+        y_coords[y_coords >= self.img_height] = self.img_height - 1
+        y_coords[y_coords < 0] = 0
+        boxes_tensor[:, :, :, [1, 3]] = y_coords
 
         # `normalize_coords` is enabled, normalize the coordinates to be within [0,1]
         if self.normalize_coords:
@@ -1243,14 +1015,10 @@ class SSDInputEncoder:
         # TODO: Implement box limiting directly for `(cx, cy, w, h)` so that we don't have to unnecessarily convert back and forth.
         if self.coords == 'centroids':
             # Convert `(xmin, ymin, xmax, ymax)` back to `(cx, cy, w, h)`.
-            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2centroids',
-                                               border_pixels='half')
-        elif self.coords == 'minmax':
-            # Convert `(xmin, ymin, xmax, ymax)` to `(xmin, xmax, ymin, ymax).
-            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2minmax',
-                                               border_pixels='half')
+            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2centroids')
 
         return boxes_tensor
+
 
     def generate_encoding_template(self, batch_size):
         '''
@@ -1339,7 +1107,6 @@ class AnchorBoxes(Layer):
                  two_boxes_for_ar1=True,
                  this_steps=None,
                  this_offsets=None,
-                 clip_boxes=False,
                  variances=[0.1, 0.1, 0.2, 0.2],
                  coords='centroids',
                  normalize_coords=False,
@@ -1361,7 +1128,6 @@ class AnchorBoxes(Layer):
                 If `True`, two default boxes will be generated for aspect ratio 1. The first will be generated
                 using the scaling factor for the respective layer, the second one will be generated using
                 geometric mean of said scaling factor and next bigger scaling factor.
-            clip_boxes (bool, optional): If `True`, clips the anchor box coordinates to stay within image boundaries.
             variances (list, optional): A list of 4 floats >0. The anchor box offset for each coordinate will be divided by
                 its respective variance value.
             coords (str, optional): The box coordinate format to be used internally in the model (i.e. this is not the input format
@@ -1394,7 +1160,6 @@ class AnchorBoxes(Layer):
         self.two_boxes_for_ar1 = two_boxes_for_ar1
         self.this_steps = this_steps
         self.this_offsets = this_offsets
-        self.clip_boxes = clip_boxes
         self.variances = variances
         self.coords = coords
         self.normalize_coords = normalize_coords
@@ -1495,16 +1260,15 @@ class AnchorBoxes(Layer):
         # Convert `(cx, cy, w, h)` to `(xmin, xmax, ymin, ymax)`
         boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='centroids2corners')
 
-        # If `clip_boxes` is enabled, clip the coordinates to lie within the image boundaries
-        if self.clip_boxes:
-            x_coords = boxes_tensor[:, :, :, [0, 2]]
-            x_coords[x_coords >= self.img_width] = self.img_width - 1
-            x_coords[x_coords < 0] = 0
-            boxes_tensor[:, :, :, [0, 2]] = x_coords
-            y_coords = boxes_tensor[:, :, :, [1, 3]]
-            y_coords[y_coords >= self.img_height] = self.img_height - 1
-            y_coords[y_coords < 0] = 0
-            boxes_tensor[:, :, :, [1, 3]] = y_coords
+        # clip the coordinates to lie within the image boundaries
+        x_coords = boxes_tensor[:, :, :, [0, 2]]
+        x_coords[x_coords >= self.img_width] = self.img_width - 1
+        x_coords[x_coords < 0] = 0
+        boxes_tensor[:, :, :, [0, 2]] = x_coords
+        y_coords = boxes_tensor[:, :, :, [1, 3]]
+        y_coords[y_coords >= self.img_height] = self.img_height - 1
+        y_coords[y_coords < 0] = 0
+        boxes_tensor[:, :, :, [1, 3]] = y_coords
 
         # If `normalize_coords` is enabled, normalize the coordinates to be within [0,1]
         if self.normalize_coords:
@@ -1514,12 +1278,10 @@ class AnchorBoxes(Layer):
         # TODO: Implement box limiting directly for `(cx, cy, w, h)` so that we don't have to unnecessarily convert back and forth.
         if self.coords == 'centroids':
             # Convert `(xmin, ymin, xmax, ymax)` back to `(cx, cy, w, h)`.
-            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2centroids',
-                                               border_pixels='half')
+            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2centroids')
         elif self.coords == 'minmax':
             # Convert `(xmin, ymin, xmax, ymax)` to `(xmin, xmax, ymin, ymax).
-            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2minmax',
-                                               border_pixels='half')
+            boxes_tensor = convert_coordinates(boxes_tensor, start_index=0, conversion='corners2minmax')
 
         # Create a tensor to contain the variances and append it to `boxes_tensor`. This tensor has the same shape
         # as `boxes_tensor` and simply contains the same 4 variance values for every position in the last axis.
@@ -1551,7 +1313,6 @@ class AnchorBoxes(Layer):
             'next_scale': self.next_scale,
             'aspect_ratios': list(self.aspect_ratios),
             'two_boxes_for_ar1': self.two_boxes_for_ar1,
-            'clip_boxes': self.clip_boxes,
             'variances': list(self.variances),
             'coords': self.coords,
             'normalize_coords': self.normalize_coords
@@ -1704,49 +1465,22 @@ class SSDLoss:
 
 def build_model(image_size,
                 n_classes,
-                l2_regularization=0.0,
+                l2_reg=0.0,
                 min_scale=0.2,
                 max_scale=0.9,
                 aspect_ratios=[1, 2, 3, 0.5, 0.33],
-                normalize_coords=False,
-                subtract_mean=None,
-                divide_by_stddev=None):
+                normalize_coords=False):
     '''
-    Build a Keras model with SSD architecture, see references.
+    Build a Keras model with SSD architecture.
 
     The model consists of convolutional feature layers and a number of convolutional
     predictor layers that take their input from different feature layers.
     The model is fully convolutional.
 
-    The implementation found here is a smaller version of the original architecture
-    used in the paper (where the base network consists of a modified VGG-16 extended
-    by a few convolutional feature layers), but of course it could easily be changed to
-    an arbitrarily large SSD architecture by following the general design pattern used here.
-    This implementation has 7 convolutional layers and 4 convolutional predictor
-    layers that take their input from layers 4, 5, 6, and 7, respectively.
-
-    Most of the arguments that this function takes are only needed for the anchor
-    box layers. In case you're training the network, the parameters passed here must
-    be the same as the ones used to set up `SSDBoxEncoder`. In case you're loading
-    trained weights, the parameters passed here must be the same as the ones used
-    to produce the trained weights.
-
-    Some of these arguments are explained in more detail in the documentation of the
-    `SSDBoxEncoder` class.
-
-    Note: Requires Keras v2.0 or later. Training currently works only with the
-    TensorFlow backend (v1.0 or later).
-
     Arguments:
         image_size (tuple): The input image size in the format `(height, width, channels)`.
         n_classes (int): The number of positive classes, e.g. 20 for Pascal VOC, 80 for MS COCO.
-        mode (str, optional): One of 'training', 'inference' and 'inference_fast'. In 'training' mode,
-            the model outputs the raw prediction tensor, while in 'inference' and 'inference_fast' modes,
-            the raw predictions are decoded into absolute coordinates and filtered via confidence thresholding,
-            non-maximum suppression, and top-k filtering. The difference between latter two modes is that
-            'inference' follows the exact procedure of the original Caffe implementation, while
-            'inference_fast' uses a faster prediction decoding procedure.
-        l2_regularization (float, optional): The L2-regularization rate. Applies to all convolutional layers.
+        l2_reg (float, optional): The L2-regularization rate. Applies to all convolutional layers.
         min_scale (float, optional): The smallest scaling factor for the size of the anchor boxes as a fraction
             of the shorter side of the input images.
         max_scale (float, optional): The largest scaling factor for the size of the anchor boxes as a fraction
@@ -1755,38 +1489,9 @@ def build_model(image_size,
             scaling factors will actually be the scaling factor for the last predictor layer, while the last
             scaling factor is used for the second box for aspect ratio 1 in the last predictor layer
             if `two_boxes_for_ar1` is `True`.
-        scales (list, optional): A list of floats containing scaling factors per convolutional predictor layer.
-            This list must be one element longer than the number of predictor layers. The first `k` elements are the
-            scaling factors for the `k` predictor layers, while the last element is used for the second box
-            for aspect ratio 1 in the last predictor layer if `two_boxes_for_ar1` is `True`. This additional
-            last scaling factor must be passed either way, even if it is not being used. If a list is passed,
-            this argument overrides `min_scale` and `max_scale`. All scaling factors must be greater than zero.
-        aspect_ratios_global (list, optional): The list of aspect ratios for which anchor boxes are to be
+        aspect_ratios (list, optional): The list of aspect ratios for which anchor boxes are to be
             generated. This list is valid for all predictor layers. The original implementation uses more aspect ratios
             for some predictor layers and fewer for others. If you want to do that, too, then use the next argument instead.
-        aspect_ratios_per_layer (list, optional): A list containing one aspect ratio list for each predictor layer.
-            This allows you to set the aspect ratios for each predictor layer individually. If a list is passed,
-            it overrides `aspect_ratios_global`.
-        two_boxes_for_ar1 (bool, optional): Only relevant for aspect ratio lists that contain 1. Will be ignored otherwise.
-            If `True`, two anchor boxes will be generated for aspect ratio 1. The first will be generated
-            using the scaling factor for the respective layer, the second one will be generated using
-            geometric mean of said scaling factor and next bigger scaling factor.
-        steps (list, optional): `None` or a list with as many elements as there are predictor layers. The elements can be
-            either ints/floats or tuples of two ints/floats. These numbers represent for each predictor layer how many
-            pixels apart the anchor box center points should be vertically and horizontally along the spatial grid over
-            the image. If the list contains ints/floats, then that value will be used for both spatial dimensions.
-            If the list contains tuples of two ints/floats, then they represent `(step_height, step_width)`.
-            If no steps are provided, then they will be computed such that the anchor box center points will form an
-            equidistant grid within the image dimensions.
-        offsets (list, optional): `None` or a list with as many elements as there are predictor layers. The elements can be
-            either floats or tuples of two floats. These numbers represent for each predictor layer how many
-            pixels from the top and left boarders of the image the top-most and left-most anchor box center points should be
-            as a fraction of `steps`. The last bit is important: The offsets are not absolute pixel values, but fractions
-            of the step size specified in the `steps` argument. If the list contains floats, then that value will
-            be used for both spatial dimensions. If the list contains tuples of two floats, then they represent
-            `(vertical_offset, horizontal_offset)`. If no offsets are provided, then they will default to 0.5 of the step size,
-            which is also the recommended setting.
-        clip_boxes (bool, optional): If `True`, clips the anchor box coordinates to stay within image boundaries.
         variances (list, optional): A list of 4 floats >0. The anchor box offset for each coordinate will be divided by
             its respective variance value.
         coords (str, optional): The box coordinate format to be used internally by the model (i.e. this is not the input format
@@ -1794,16 +1499,6 @@ def build_model(image_size,
             and height), 'minmax' for the format `(xmin, xmax, ymin, ymax)`, or 'corners' for the format `(xmin, ymin, xmax, ymax)`.
         normalize_coords (bool, optional): Set to `True` if the model is supposed to use relative instead of absolute coordinates,
             i.e. if the model predicts box coordinates within [0,1] instead of absolute coordinates.
-        subtract_mean (array-like, optional): `None` or an array-like object of integers or floating point values
-            of any shape that is broadcast-compatible with the image shape. The elements of this array will be
-            subtracted from the image pixel intensity values. For example, pass a list of three integers
-            to perform per-channel mean normalization for color images.
-        divide_by_stddev (array-like, optional): `None` or an array-like object of non-zero integers or
-            floating point values of any shape that is broadcast-compatible with the image shape. The image pixel
-            intensity values will be divided by the elements of this array. For example, pass a list
-            of three integers to perform per-channel standard deviation normalization for color images.
-        swap_channels (list, optional): Either `False` or a list of integers representing the desired order in which the input
-            image channels should be swapped.
         confidence_thresh (float, optional): A float in [0,1), the minimum classification confidence in a specific
             positive class in order to be considered for the non-maximum suppression stage for the respective class.
             A lower value will result in a larger part of the selection process being done by the non-maximum suppression
@@ -1815,20 +1510,9 @@ def build_model(image_size,
         top_k (int, optional): The number of highest scoring predictions to be kept for each batch item after the
             non-maximum suppression stage.
         nms_max_output_size (int, optional): The maximal number of predictions that will be left over after the NMS stage.
-        return_predictor_sizes (bool, optional): If `True`, this function not only returns the model, but also
-            a list containing the spatial dimensions of the predictor layers. This isn't strictly necessary since
-            you can always get their sizes easily via the Keras API, but it's convenient and less error-prone
-            to get them this way. They are only relevant for training anyway (SSDBoxEncoder needs to know the
-            spatial dimensions of the predictor layers), for inference you don't need them.
 
     Returns:
         model: The Keras SSD model.
-        predictor_sizes (optional): A Numpy array containing the `(height, width)` portion
-            of the output tensor shape for each convolutional predictor layer. During
-            training, the generator function needs this in order to transform
-            the ground truth labels into tensors of identical structure as the
-            output tensors of the model, which is in turn needed for the cost
-            function.
 
     References:
         https://arxiv.org/abs/1512.02325v5
@@ -1838,9 +1522,7 @@ def build_model(image_size,
     variances = [1.0, 1.0, 1.0, 1.0]
     n_predictor_layers = 6  # The number of predictor conv layers in the network
     n_classes += 1  # Account for the background class.
-    l2_reg = l2_regularization  # Make the internal name shorter.
     img_height, img_width, img_channels = image_size[0], image_size[1], image_size[2]
-    clip_boxes = True
 
     ############################################################################
     # Get a few exceptions out of the way.
@@ -1863,149 +1545,14 @@ def build_model(image_size,
     n_boxes = [n_boxes] * n_predictor_layers
 
     ############################################################################
-    # Define functions for the Lambda layers below.
-    ############################################################################
-
-    def identity_layer(tensor):
-        return tensor
-
-    def input_mean_normalization(tensor):
-        return tensor - np.array(subtract_mean)
-
-    def input_stddev_normalization(tensor):
-        return tensor / np.array(divide_by_stddev)
-
-    ############################################################################
-    # Continue MobileNetV2
-    ############################################################################
-    def _conv_block(inputs, filters, kernel, strides):
-        """Convolution Block
-        This function defines a 2D convolution operation with BN and relu6.
-        # Arguments
-            inputs: Tensor, input tensor of conv layer.
-            filters: Integer, the dimensionality of the output space.
-            kernel: An integer or tuple/list of 2 integers, specifying the
-                width and height of the 2D convolution window.
-            strides: An integer or tuple/list of 2 integers,
-                specifying the strides of the convolution along the width and height.
-                Can be a single integer to specify the same value for
-                all spatial dimensions.
-        # Returns
-            Output tensor.
-        """
-
-        channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
-
-        x = Conv2D(filters, kernel, padding='same', strides=strides)(inputs)
-        x = BatchNormalization(axis=channel_axis)(x)
-        return Activation(relu6)(x)
-
-    def _bottleneck(inputs, filters, kernel, t, alpha=1, s=1, r=False):
-        """Bottleneck
-        This function defines a basic bottleneck structure.
-        # Arguments
-            inputs: Tensor, input tensor of conv layer.
-            filters: Integer, the dimensionality of the output space.
-            kernel: An integer or tuple/list of 2 integers, specifying the
-                width and height of the 2D convolution window.
-            t: Integer, expansion factor.
-                t is always applied to the input size.
-            s: An integer or tuple/list of 2 integers,specifying the strides
-                of the convolution along the width and height.Can be a single
-                integer to specify the same value for all spatial dimensions.
-            alpha: Integer, width multiplier.
-            r: Boolean, Whether to use the residuals.
-        # Returns
-            Output tensor.
-        """
-
-        channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
-        # Depth
-        tchannel = K.int_shape(inputs)[channel_axis] * t
-        # Width
-        cchannel = int(filters * alpha)
-
-        x = _conv_block(inputs, tchannel, (1, 1), (1, 1))
-
-        x = DepthwiseConv2D(kernel, strides=(s, s), depth_multiplier=1, padding='same')(x)
-        x = BatchNormalization(axis=channel_axis)(x)
-        x = Activation(relu6)(x)
-
-        x = Conv2D(cchannel, (1, 1), strides=(1, 1), padding='same')(x)
-        x = BatchNormalization(axis=channel_axis)(x)
-
-        if r:
-            x = Add()([x, inputs])
-
-        return x
-
-    def _inverted_residual_block(inputs, filters, kernel, t, alpha=1, strides=1, n=1):
-        """Inverted Residual Block
-        This function defines a sequence of 1 or more identical layers.
-        # Arguments
-            inputs: Tensor, input tensor of conv layer.
-            filters: Integer, the dimensionality of the output space.
-            kernel: An integer or tuple/list of 2 integers, specifying the
-                width and height of the 2D convolution window.
-            t: Integer, expansion factor.
-                t is always applied to the input size.
-            alpha: Integer, width multiplier.
-            s: An integer or tuple/list of 2 integers,specifying the strides
-                of the convolution along the width and height.Can be a single
-                integer to specify the same value for all spatial dimensions.
-            n: Integer, layer repeat times.
-        # Returns
-            Output tensor.
-        """
-
-        x = _bottleneck(inputs, filters, kernel, t, alpha, strides)
-
-        for i in range(1, n):
-            x = _bottleneck(x, filters, kernel, t, alpha, 1, True)
-
-        return x
-
-    ############################################################################
     # Build the network.
     ############################################################################
-
-    Xin = Input(shape=(img_height, img_width, img_channels))
-    # The following identity layer is only needed so that the subsequent lambda layers can be optional.
-    x = Lambda(identity_layer, output_shape=(img_height, img_width, img_channels), name='identity_layer')(Xin)
-    if not (subtract_mean is None):
-        x = Lambda(input_mean_normalization, output_shape=(img_height, img_width, img_channels),
-                   name='input_mean_normalization')(x)
-    if not (divide_by_stddev is None):
-        x = Lambda(input_stddev_normalization, output_shape=(img_height, img_width, img_channels),
-                   name='input_stddev_normalization')(x)
-
-    x = _conv_block(x, 32, (3, 3), strides=(2, 2))
-
-    x = _inverted_residual_block(x, 16, (3, 3), t=1, strides=1, n=1)
-    x = _inverted_residual_block(x, 24, (3, 3), t=6, strides=2, n=2)
-    x = _inverted_residual_block(x, 32, (3, 3), t=6, strides=2, n=3)
-    conv1 = x
-    x = _inverted_residual_block(x, 64, (3, 3), t=6, strides=2, n=4)
-    x = _inverted_residual_block(x, 96, (3, 3), t=6, strides=1, n=3)
-    conv2 = x
-    x = _inverted_residual_block(x, 160, (3, 3), t=6, strides=2, n=3)
-    x = _inverted_residual_block(x, 320, (3, 3), t=6, strides=1, n=1)
-
-    conv3 = x
-
-    conv4 = _inverted_residual_block(conv3, 480, (3, 3), t=6, strides=2, n=2)
-    conv5 = _inverted_residual_block(conv4, 640, (3, 3), t=6, strides=2, n=2)
-    conv6 = _inverted_residual_block(conv5, 800, (3, 3), t=6, strides=2, n=2)
-
-
-
 
     base_model = MobileNetV2(input_shape=(img_height, img_width, img_channels), include_top=False)
     
     # SSD: VGG Conv4_3 equivalent (28x28)
     conv4_3 = base_model.get_layer('block_4_add').output
-    #conv4_3_norm = L2Normalization(gamma_init=20, name='conv4_3_norm')(conv4_3)
-    
+
     # SSD: VGG fc6 equivalent (14x14) This layer not used for SSD.
     fc6 = base_model.get_layer('block_12_add').output
 
@@ -2019,30 +1566,26 @@ def build_model(image_size,
     conv8_1 = Conv2D(256, (1, 1), activation='relu', padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='conv8_1')(fc7)
     conv8_1 = ZeroPadding2D(padding=((1, 1), (1, 1)), name='conv8_padding')(conv8_1)
     conv8_2 = Conv2D(512, (3, 3), strides=(2, 2), activation='relu', padding='valid', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='conv8_2')(conv8_1)
-    #print ('conv8_2', conv8_2.shape)
-    
+
     # SSD: VGG conv9_2 equivalent (4x4)
     conv9_1 = Conv2D(128, (1, 1), activation='relu', padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='conv9_1')(conv8_2)
     conv9_1 = ZeroPadding2D(padding=((1, 1), (1, 1)), name='conv9_padding')(conv9_1)
     conv9_2 = Conv2D(256, (3, 3), strides=(2, 2), activation='relu', padding='valid', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='conv9_2')(conv9_1)
-    #print ('conv9_2', conv9_2.shape)
-    
+
     # SSD: VGG conv10_2 equivalent (2x2)
     conv10_1 = Conv2D(128, (1, 1), activation='relu', padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='conv10_1')(conv9_2)
     conv10_2 = Conv2D(256, (3, 3), strides=(1, 1), activation='relu', padding='valid', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='conv10_2')(conv10_1)
-    #print ('conv10_2', conv10_2.shape)
     
     # SSD: VGG conv11_2 equivalent (1x1)
     conv11_1 = Conv2D(128, (1, 1), activation='relu', padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='conv11_1')(conv10_2)
     conv11_2 = Conv2D(256, (2, 2), strides=(1, 1), activation='relu', padding='valid', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='conv11_2')(conv11_1)
-    #print ('conv11_2', conv11_2.shape)
 
     # The next part is to add the convolutional predictor layers on top of the base network
-    # that we defined above. Note that I use the term "base network" differently than the paper does.
-    # To me, the base network is everything that is not convolutional predictor layers or anchor
-    # box layers. In this case we'll have four predictor layers, but of course you could
-    # easily rewrite this into an arbitrarily deep base network and add an arbitrary number of
-    # predictor layers on top of the base network by simply following the pattern shown here.
+    #     # that we defined above. Note that I use the term "base network" differently than the paper does.
+    #     # To me, the base network is everything that is not convolutional predictor layers or anchor
+    #     # box layers. In this case we'll have four predictor layers, but of course you could
+    #     # easily rewrite this into an arbitrarily deep base network and add an arbitrary number of
+    #     # predictor layers on top of the base network by simply following the pattern shown here.
 
     # Build the convolutional predictor layers on top of conv layers 4, 5, 6, and 7.
     # We build two predictor layers on top of each of these layers: One for class prediction (classification), one for box coordinate prediction (localization)
@@ -2083,32 +1626,32 @@ def build_model(image_size,
     anchors1 = AnchorBoxes(img_height, img_width, this_scale=scales[0], next_scale=scales[1],
                            aspect_ratios=aspect_ratios[0],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                            variances=variances, coords=coords, normalize_coords=normalize_coords,
                            name='anchors1')(boxes1)
     anchors2 = AnchorBoxes(img_height, img_width, this_scale=scales[1], next_scale=scales[2],
                            aspect_ratios=aspect_ratios[1],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                            variances=variances, coords=coords, normalize_coords=normalize_coords,
                            name='anchors2')(boxes2)
     anchors3 = AnchorBoxes(img_height, img_width, this_scale=scales[2], next_scale=scales[3],
                            aspect_ratios=aspect_ratios[2],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                            variances=variances, coords=coords, normalize_coords=normalize_coords,
                            name='anchors3')(boxes3)
     anchors4 = AnchorBoxes(img_height, img_width, this_scale=scales[3], next_scale=scales[4],
                            aspect_ratios=aspect_ratios[3],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                           variances=variances, coords=coords, normalize_coords=normalize_coords,
                            name='anchors4')(boxes4)
     anchors5 = AnchorBoxes(img_height, img_width, this_scale=scales[4], next_scale=scales[5],
                            aspect_ratios=aspect_ratios[4],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                           variances=variances, coords=coords, normalize_coords=normalize_coords,
                            name='anchors5')(boxes5)
     anchors6 = AnchorBoxes(img_height, img_width, this_scale=scales[5], next_scale=scales[6],
                            aspect_ratios=aspect_ratios[5],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
-                           clip_boxes=clip_boxes, variances=variances, coords=coords, normalize_coords=normalize_coords,
+                            variances=variances, coords=coords, normalize_coords=normalize_coords,
                            name='anchors6')(boxes6)
 
     # Reshape the class predictions, yielding 3D tensors of shape `(batch, height * width * n_boxes, n_classes)`
@@ -2458,7 +2001,7 @@ class datagen:
 ### Decoder
 ########################################################
    
-def _greedy_nms(predictions, iou_threshold=0.45, coords='corners', border_pixels='half'):
+def _greedy_nms(predictions, iou_threshold=0.45, coords='corners'):
     '''
     The same greedy non-maximum suppression algorithm as above, but slightly modified for use as an internal
     function for per-class NMS in `decode_detections()`.
@@ -2471,7 +2014,7 @@ def _greedy_nms(predictions, iou_threshold=0.45, coords='corners', border_pixels
         maxima.append(maximum_box) # ...append it to `maxima` because we'll definitely keep it
         boxes_left = np.delete(boxes_left, maximum_index, axis=0) # Now remove the maximum box from `boxes_left`
         if boxes_left.shape[0] == 0: break # If there are no boxes left after this step, break. Otherwise...
-        similarities = iou(boxes_left[:,1:], maximum_box[1:], coords=coords, mode='element-wise', border_pixels=border_pixels) # ...compare (IoU) the other left over boxes to the maximum box...
+        similarities = iou(boxes_left[:,1:], maximum_box[1:], coords=coords, mode='element-wise') # ...compare (IoU) the other left over boxes to the maximum box...
         boxes_left = boxes_left[similarities <= iou_threshold] # ...so that we can remove the ones that overlap too much with the maximum box
     return np.array(maxima)
 
@@ -2482,8 +2025,7 @@ def decode_detections(y_pred,
                       input_coords='centroids',
                       normalize_coords=False,
                       img_height=224,
-                      img_width=224,
-                      border_pixels='half'):
+                      img_width=224):
     '''
     Convert model prediction output back to a format that contains only the positive box predictions
     (i.e. the same format that `SSDInputEncoder` takes as input).
@@ -2518,11 +2060,7 @@ def decode_detections(y_pred,
             coordinates. Requires `img_height` and `img_width` if set to `True`.
         img_height (int, optional): The height of the input images. Only needed if `normalize_coords` is `True`.
         img_width (int, optional): The width of the input images. Only needed if `normalize_coords` is `True`.
-        border_pixels (str, optional): How to treat the border pixels of the bounding boxes.
-            Can be 'include', 'exclude', or 'half'. If 'include', the border pixels belong
-            to the boxes. If 'exclude', the border pixels do not belong to the boxes.
-            If 'half', then one of each of the two horizontal and vertical borders belong
-            to the boxex, but not the other.
+
     Returns:
         A python list of length `batch_size` where each list element represents the predicted boxes
         for one image and contains a Numpy array of shape `(boxes, 6)` where each row is a box prediction for
@@ -2574,7 +2112,7 @@ def decode_detections(y_pred,
             single_class = batch_item[:,[class_id, -4, -3, -2, -1]] # ...keep only the confidences for that class, making this an array of shape `[n_boxes, 5]` and...
             threshold_met = single_class[single_class[:,0] > confidence_thresh] # ...keep only those boxes with a confidence above the set threshold.
             if threshold_met.shape[0] > 0: # If any boxes made the threshold...
-                maxima = _greedy_nms(threshold_met, iou_threshold=iou_threshold, coords='corners', border_pixels=border_pixels) # ...perform NMS on them.
+                maxima = _greedy_nms(threshold_met, iou_threshold=iou_threshold, coords='corners') # ...perform NMS on them.
                 maxima_output = np.zeros((maxima.shape[0], maxima.shape[1] + 1)) # Expand the last dimension by one element to have room for the class ID. This is now an arrray of shape `[n_boxes, 6]`
                 maxima_output[:,0] = class_id # Write the class ID to the first column...
                 maxima_output[:,1:] = maxima # ...and write the maxima to the other columns...
