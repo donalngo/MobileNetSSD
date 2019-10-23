@@ -857,7 +857,7 @@ class SSDInputEncoder:
         ymax = 4
         batch_size = len(ground_truth_labels)
         if batch_size == 0:
-            print(ground_truth_labels)
+            print('No ground truth labels passed to encoder')
         # Generate the template for y_encoded using the anchor boxes generated in constructor
         y_encoded = self.generate_encoding_template(batch_size=batch_size)  # shape (batch_size, n_boxes, #classes + 12)
         y_encoded[:, :, self.background_id] = 1  # Initialize all boxes to background class
@@ -1621,8 +1621,6 @@ def build_model(image_size,
 
     # Generate the anchor boxes
     # Output shape of `anchors`: `(batch, height, width, n_boxes, 8)`
-    #print(conv1.shape)
-    #print(boxes1.shape)
     anchors1 = AnchorBoxes(img_height, img_width, this_scale=scales[0], next_scale=scales[1],
                            aspect_ratios=aspect_ratios[0],
                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=None, this_offsets=None,
@@ -1823,8 +1821,11 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, transl
                                        y2=int(data_csv[j][7]))
             clsses.append(int(data_csv[j][8]))
             bounding_boxes.append(bounding_box)
+    try:
+        bbs = BoundingBoxesOnImage(bounding_boxes, shape=img.shape)
+    except:
+        print ("error",filename)
 
-    bbs = BoundingBoxesOnImage(bounding_boxes, shape=img.shape)
 
     seq = iaa.Sequential([
         iaa.Resize({"height": img_sz, "width": img_sz}),
@@ -1886,12 +1887,13 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
             start = cur_step * batch_size
             end = len(images)
             batch_data = images[start:end]
-            cur_step += 1
+            cur_step = 0
+            print(batch_data)
         else:
             start = cur_step * batch_size
             end = cur_step * batch_size + batch_size
             batch_data = images[start:end]
-            cur_step = 0
+            cur_step += 1
         X = []
         Y = []
         for j in batch_data:
@@ -1908,10 +1910,12 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
                                                   ver_flip=ver_flip)
             X.append(x_image)
             Y.append(y_boxes)
+            if(len(y_boxes)==0):
+                print(j, 'No BB Boxes')
+
         X = np.array(X)
         Y = label_encoder(Y)
-        if len(Y) == 0:
-            print(Y)
+
         yield X, Y
         # clear list after completion
         X = []
@@ -1950,20 +1954,14 @@ class datagen:
         csv_path = xml_to_csv(xml_dir)
         # Read CSV File
         data_csv = read_csv(xml_dir, "labels.csv")
-
-        # Split data into 3 parts
-        # train_data = splitted_data_csv_train
-        # valid_data = splitted_data_csv_valid
-        # test_data = splitted_data_csv_test
+        images = list(set([data_csv[i][0] for i in range(len(data_csv))]))
 
         # Calculate batch_size and steps_per_epoch
         if batch_size is not None and steps_per_epoch is None:
-            steps_per_epoch = int((len(data_csv) + 1) / batch_size)
+            steps_per_epoch = int((len(images) + 1) / batch_size)
         if batch_size is None and steps_per_epoch is not None:
-            batch_size = int((len(data_csv) + 1) / steps_per_epoch)
+            batch_size = int((len(images) + 1) / steps_per_epoch)
 
-        images = list(set([data_csv[i][0] for i in range(len(data_csv))]))
-        # Creates 3 generators for train validation and test, image augmentation only done for training set
 
         train_batch_gen = image_batch_generator(img_dir,
                                                 data_csv,
@@ -1978,20 +1976,6 @@ class datagen:
                                                 hor_flip=hor_flip,
                                                 ver_flip=ver_flip)
 
-        # valid_batch_gen = image_batch_generator(img_dir,
-        #                                         splitted_data_csv_valid,
-        #                                         steps_per_epoch,
-        #                                         batch_size,
-        #                                         img_sz=img_sz
-        #                                         )
-        #
-        # test_batch_gen = image_batch_generator(img_dir,
-        #                                        splitted_data_csv_test,
-        #                                        steps_per_epoch,
-        #                                        batch_size,
-        #                                        img_sz=img_sz
-        #                                        )
-        # return train_batch_gen, valid_batch_gen, test_batch_gen
         total_img = len(images)
 
         return train_batch_gen, total_img

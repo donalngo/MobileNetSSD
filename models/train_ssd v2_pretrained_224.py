@@ -31,7 +31,7 @@ from keras_ssd_pretrained_224 import image_augmentation
 #model.summary()
 #%% Block 1: Building Model
 
-loadweights = True
+loadweights = False
 weightsfile = "pretrain_ssd224+epoch-253_loss-2.3784_val_loss-3.6208.h5"
 
 
@@ -99,8 +99,11 @@ label_encoder = SSDInputEncoder(img_height,
                                 normalize_coords=normalize_coords,
                                 background_id=0)
 
+# train_dataset, train_imgs = datagen.data_generator(img_dir = train_image_dir, xml_dir = train_image_dir, batch_size=batch_size, steps_per_epoch=None, img_sz=224, label_encoder=label_encoder,
+#                        translate=0.5, rotate=45, scale=5, shear=0, hor_flip=True, ver_flip=True)
 train_dataset, train_imgs = datagen.data_generator(img_dir = train_image_dir, xml_dir = train_image_dir, batch_size=batch_size, steps_per_epoch=None, img_sz=224, label_encoder=label_encoder,
-                       translate=0.5, rotate=45, scale=5, shear=0, hor_flip=True, ver_flip=True)
+                                                   translate=0, rotate=0, scale=1, shear=0, hor_flip=False,
+                                                   ver_flip=False)
 val_dataset, val_imgs = datagen.data_generator(img_dir = val_image_dir, xml_dir = val_image_dir, batch_size=batch_size, steps_per_epoch=None, img_sz=224, label_encoder=label_encoder,
                        translate=0, rotate=0, scale=1, shear=0, hor_flip=False, ver_flip=False)
 
