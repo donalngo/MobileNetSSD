@@ -990,7 +990,7 @@ class SSDInputEncoder:
         two_boxes_for_ar1 = True,
         predictor_sizes = np.array(predictor_sizes)
         coords = 'centroids'
-        clip_boxes = False
+        clip_boxes = True
         if predictor_sizes.ndim == 1:
             predictor_sizes = np.expand_dims(predictor_sizes, axis=0)
 

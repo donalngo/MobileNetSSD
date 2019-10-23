@@ -989,7 +989,7 @@ class SSDInputEncoder:
         two_boxes_for_ar1 = True,
         predictor_sizes = np.array(predictor_sizes)
         coords = 'centroids'
-        clip_boxes = False
+        clip_boxes = True
         if predictor_sizes.ndim == 1:
             predictor_sizes = np.expand_dims(predictor_sizes, axis=0)
 
@@ -2245,6 +2245,10 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=300, transl
     seq = iaa.Sequential([
         iaa.Resize({"height": img_sz, "width": img_sz}),
         iaa.Rot90(flip),
+        iaa.Sometimes(0.5, iaa.GaussianBlur(sigma=(0, 0.5))),
+        iaa.ContrastNormalization((0.75, 1.5)),
+        iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05 * 255), per_channel=0.5),
+        iaa.Multiply((0.8, 1.2), per_channel=0.2),
         iaa.Affine(
             translate_percent={"x": (-translate, translate), "y": (-translate, translate)},
             rotate=(-rotate, rotate),
@@ -2354,8 +2358,6 @@ class datagen:
         :return: 3 generators for training, validation and testing
         """
         # Exceptions
-        # filename check
-
         # User must input either batch_size or steps_per_epoch
         if batch_size is None and steps_per_epoch is None:
             raise ValueError(
