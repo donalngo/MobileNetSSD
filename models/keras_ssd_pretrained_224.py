@@ -1815,12 +1815,16 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, transl
         indexes = [j for j, x in enumerate(data_csv) if filename in x]
 
         for j in indexes:
+            if int(data_csv[j][8]) == 3:
+                label = 1
+            elif int(data_csv[j][8]) == 4:
+                label = 2
             # create bounding boxes and append them into a single list
             bounding_box = BoundingBox(x1=int(data_csv[j][4]),
                                        y1=int(data_csv[j][6]),
                                        x2=int(data_csv[j][5]),
                                        y2=int(data_csv[j][7]),
-                                       label = data_csv[j][8])
+                                       label = label)
 
             bounding_boxes.append(bounding_box)
     try:
@@ -1895,7 +1899,7 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
     # organise images into batches
     while True:
 
-        if cur_step == steps_per_epoch:
+        if cur_step == steps_per_epoch-1:
             start = cur_step * batch_size
             end = len(images)
             batch_data = images[start:end]
@@ -1926,7 +1930,10 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
                 #print(j, 'No BB Boxes')
 
         X = np.array(X)
+        if len(Y) == 0:
+            print(Y)
         Y = label_encoder(Y)
+
 
         yield X, Y
         # clear list after completion
