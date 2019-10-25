@@ -8,6 +8,7 @@ from tensorflow.keras.regularizers import l2
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.nn import relu6
 import tensorflow.keras.backend as K
+import matplotlib
 
 
 import imgaug as ia
@@ -1818,8 +1819,9 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, transl
             bounding_box = BoundingBox(x1=int(data_csv[j][4]),
                                        y1=int(data_csv[j][6]),
                                        x2=int(data_csv[j][5]),
-                                       y2=int(data_csv[j][7]))
-            clsses.append(int(data_csv[j][8]))
+                                       y2=int(data_csv[j][7]),
+                                       label = data_csv[j][8])
+
             bounding_boxes.append(bounding_box)
     try:
         bbs = BoundingBoxesOnImage(bounding_boxes, shape=img.shape)
@@ -1829,23 +1831,33 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, transl
 
     seq = iaa.Sequential([
         iaa.Resize({"height": img_sz, "width": img_sz}),
-        iaa.Rot90(flip),
-        iaa.Affine(
-            translate_percent={"x": (-translate, translate), "y": (-translate, translate)},
-            rotate=(-rotate, rotate),
-            scale=(1 / scale, scale),
-            shear=(-shear, shear)
-        )
+        # iaa.Rot90(flip),
+        iaa.Sometimes(0.5,
+                      iaa.GaussianBlur(sigma=(0, 0.5))), #Gaussian Blur
+        iaa.ContrastNormalization((0.75, 1.5)), # Change Contrast of Image
+        iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05 * 255), per_channel=0.5), # Add Gaussian Noise
+        iaa.Multiply((0.8, 1.2), per_channel=0.2), #Make images brighter or darker based on Channel
+        # iaa.Affine(
+        #     translate_percent={"x": (-translate, translate), "y": (-translate, translate)},
+        #     rotate=(-rotate, rotate),
+        #     scale=(1 / scale, scale),
+        #     shear=(-shear, shear)
+        # )
     ])
     # Augment BBs and images.
     image_aug, bbs_aug = seq(image=img, bounding_boxes=bbs)
     image_aug = image_aug / 255
     bbs_aug = bbs_aug.remove_out_of_image().clip_out_of_image()
 
+    # image_before = bbs.draw_on_image(img, size=10)
+    # image_after = bbs_aug.draw_on_image(image_aug, size=10, color=[0, 0, 255])
+    # matplotlib.pyplot.imshow(image_before)
+    # matplotlib.pyplot.imshow(image_after)
+
+
     for i in range(len(bbs_aug.bounding_boxes)):
         boxes = bbs_aug.bounding_boxes[i]
-        cls = clsses[i]
-        labels.append([cls, boxes.x1, boxes.y1, boxes.x2, boxes.y2])
+        labels.append([boxes.label, boxes.x1, boxes.y1, boxes.x2, boxes.y2])
 
     y = np.asarray(labels)
 
@@ -1888,7 +1900,7 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
             end = len(images)
             batch_data = images[start:end]
             cur_step = 0
-            print(batch_data)
+            #print(batch_data)
         else:
             start = cur_step * batch_size
             end = cur_step * batch_size + batch_size
@@ -1910,8 +1922,8 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
                                                   ver_flip=ver_flip)
             X.append(x_image)
             Y.append(y_boxes)
-            if(len(y_boxes)==0):
-                print(j, 'No BB Boxes')
+            #if(len(y_boxes)==0):
+                #print(j, 'No BB Boxes')
 
         X = np.array(X)
         Y = label_encoder(Y)
