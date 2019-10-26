@@ -11,14 +11,14 @@ from tensorflow.keras import losses
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, TerminateOnNaN, CSVLogger
 import glob
 
-from models.keras_ssd_pretrained_224 import build_model
-from models.keras_ssd_pretrained_224 import SSDLoss
-from models.keras_ssd_pretrained_224 import datagen
-from models.keras_ssd_pretrained_224 import SSDInputEncoder
-from models.keras_ssd_pretrained_224 import decode_detections
-from models.keras_ssd_pretrained_224 import xml_to_csv
-from models.keras_ssd_pretrained_224 import read_csv
-from models.keras_ssd_pretrained_224 import image_augmentation
+from keras_ssd_pretrained_224 import build_model
+from keras_ssd_pretrained_224 import SSDLoss
+from keras_ssd_pretrained_224 import datagen
+from keras_ssd_pretrained_224 import SSDInputEncoder
+from keras_ssd_pretrained_224 import decode_detections
+from keras_ssd_pretrained_224 import xml_to_csv
+from keras_ssd_pretrained_224 import read_csv
+from keras_ssd_pretrained_224 import image_augmentation
 #%%
 #from tensorflow.keras.applications import MobileNetV2
 #from tensorflow.keras.layers import Input
@@ -71,12 +71,8 @@ model.summary()
 #%% Block 3: Generator for Training
 
 # Directories
-#train_image_dir     = '/Teerapong/3. Github/1. NUS Masters/CA/MobileNetSSD/models/img_train/'
-train_image_dir     = 'img_train/'
-val_image_dir     = 'img_val/'
-
-
-
+train_image_dir = 'data/img_train/'
+val_image_dir = 'data/img_val/'
 batch_size = 20
 
 predictor_sizes = [model.get_layer('classes1').output_shape[1:3],

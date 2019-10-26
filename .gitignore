@@ -5,6 +5,9 @@ __pycache__/
 *$py.class
 .idea/
 models/MnF/
+*.h5
+*.csv
+data/
 
 # User-specific stuff
 .idea/**/workspace.xml
@@ -28,6 +31,8 @@ models/MnF/
 .idea
 # C extensions
 *.so
+*.h5
+*.csv
 
 # Distribution / packaging
 .Python
