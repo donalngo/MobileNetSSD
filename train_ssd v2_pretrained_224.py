@@ -71,8 +71,9 @@ model.summary()
 #%% Block 3: Generator for Training
 
 # Directories
-train_image_dir = 'data/img_train/'
-val_image_dir = 'data/img_val/'
+data_dir = 'data/'
+train_image_dir = data_dir+'img_train/'
+val_image_dir = data_dir+'img_val/'
 batch_size = 20
 
 predictor_sizes = [model.get_layer('classes1').output_shape[1:3],
