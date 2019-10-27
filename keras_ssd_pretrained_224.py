@@ -1488,18 +1488,14 @@ def _greedy_nms(predictions, iou_threshold=0.45, coords='corners'):
 def decode_detections(y_pred,
                       confidence_thresh=0.01,
                       iou_threshold=0.45,
-                      top_k=200,
-                      img_height=224,
-                      img_width=224):
+                      top_k=200):
     '''
     Convert model prediction output back to a format that contains only the positive box predictions
     (i.e. the same format that `SSDInputEncoder` takes as input).
     After the decoding, two stages of prediction filtering are performed for each class individually:
     First confidence thresholding, then greedy non-maximum suppression. The filtering results for all
     classes are concatenated and the `top_k` overall highest confidence results constitute the final
-    predictions for a given batch item. This procedure follows the original Caffe implementation.
-    For a slightly different and more efficient alternative to decode raw model output that performs
-    non-maximum suppresion globally instead of per class, see `decode_detections_fast()` below.
+    predictions for a given batch item.
     Arguments:
         y_pred (array): The prediction output of the SSD model, expected to be a Numpy array
             of shape `(batch_size, #boxes, #classes + 4 + 4 + 4)`, where `#boxes` is the total number of
@@ -1531,9 +1527,11 @@ def decode_detections(y_pred,
     y_pred_decoded_raw[:,:,[-2,-1]] *= y_pred[:,:,[-6,-5]] # (w(pred) / w(anchor)) * w(anchor) == w(pred), (h(pred) / h(anchor)) * h(anchor) == h(pred)
     y_pred_decoded_raw[:,:,[-4,-3]] *= y_pred[:,:,[-4,-3]] * y_pred[:,:,[-6,-5]] # (delta_cx(pred) / w(anchor) / cx_variance) * cx_variance * w(anchor) == delta_cx(pred), (delta_cy(pred) / h(anchor) / cy_variance) * cy_variance * h(anchor) == delta_cy(pred)
     y_pred_decoded_raw[:,:,[-4,-3]] += y_pred[:,:,[-8,-7]] # delta_cx(pred) + cx(anchor) == cx(pred), delta_cy(pred) + cy(anchor) == cy(pred)
-    y_pred_decoded = convert_coordinates(y_pred_decoded_raw, start_index=-4, conversion='centroids2corners')
+    y_pred_decoded_raw = convert_coordinates(y_pred_decoded_raw, start_index=-4, conversion='centroids2corners')
 
-    # 3: Apply confidence thresholding and non-maximum suppression per class
+
+
+    # 2: Apply confidence thresholding and non-maximum suppression per class
 
     n_classes = y_pred_decoded_raw.shape[-1] - 4 # The number of classes is the length of the last axis minus the four box coordinates
 
