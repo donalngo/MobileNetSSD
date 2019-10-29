@@ -1236,7 +1236,8 @@ def xml_to_csv(xml_directory):
 
 def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, translate=0, rotate=0, scale=1, shear=0,
                        hor_flip=False,
-                       ver_flip=False):
+                       ver_flip=False,
+                       applyfilter=False):
     """Image Augmentation
     This function checks for multiple classes/bounding box in an image, resizes and augments images and
     returns augmented images and bounding box co-ordinates
@@ -1254,6 +1255,7 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, transl
 		shear (int, optional)= shear angle of image (0-45)
 		hor_flip (bool, optional)= True to allow generator to randomly flip images horizontally
 		ver_flip (bool, optional) = True to allow generator to randomly flip images vertically
+        applyfilter(bool, optional) = Apply random blurring, contrast, brightness and noise to the image
 
     #Returns
         image_aug : augmented image
@@ -1298,21 +1300,33 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, transl
         print ("error",filename)
 
     # use image aug to perform augmentation on image and bounding boxes
-    seq = iaa.Sequential([
-        iaa.Resize({"height": img_sz, "width": img_sz}),
-        # iaa.Rot90(flip),
-        iaa.Sometimes(0.5,
-                      iaa.GaussianBlur(sigma=(0, 0.5))), #Gaussian Blur
-        iaa.ContrastNormalization((0.75, 1.5)), # Change Contrast of Image
-        iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05 * 255), per_channel=0.5), # Add Gaussian Noise
-        iaa.Multiply((0.8, 1.2), per_channel=0.2), #Make images brighter or darker based on Channel
-        # iaa.Affine(
-        #     translate_percent={"x": (-translate, translate), "y": (-translate, translate)},
-        #     rotate=(-rotate, rotate),
-        #     scale=(1 / scale, scale),
-        #     shear=(-shear, shear)
-        # )
-    ])
+    if applyfilter is True:
+        seq = iaa.Sequential([
+            iaa.Resize({"height": img_sz, "width": img_sz}),
+            iaa.Rot90(flip),
+            iaa.Sometimes(0.5,
+                          iaa.GaussianBlur(sigma=(0, 0.5))), #Gaussian Blur
+            iaa.ContrastNormalization((0.75, 1.5)), # Change Contrast of Image
+            iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05 * 255), per_channel=0.5), # Add Gaussian Noise
+            iaa.Multiply((0.8, 1.2), per_channel=0.2), #Make images brighter or darker based on Channel
+            iaa.Affine(
+                translate_percent={"x": (-translate, translate), "y": (-translate, translate)},
+                rotate=(-rotate, rotate),
+                scale=(1 / scale, scale),
+                shear=(-shear, shear)
+            )
+        ])
+    else:
+        seq = iaa.Sequential([
+            iaa.Resize({"height": img_sz, "width": img_sz}),
+            iaa.Rot90(flip),
+            iaa.Affine(
+                translate_percent={"x": (-translate, translate), "y": (-translate, translate)},
+                rotate=(-rotate, rotate),
+                scale=(1 / scale, scale),
+                shear=(-shear, shear)
+            )
+        ])
     # Augment BBs and images.
     image_aug, bbs_aug = seq(image=img, bounding_boxes=bbs)
     image_aug = image_aug / 255
@@ -1330,7 +1344,7 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, transl
 
 def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_encoder, img_sz=224, translate=0,
                           rotate=0,
-                          scale=0, shear=0, hor_flip=False, ver_flip=False):
+                          scale=0, shear=0, hor_flip=False, ver_flip=False, applyfilter=False):
     """Batch Generator for Training Images
     Generator which returns batches of numpy array consisting of 2 numpy arrays for training
 
@@ -1385,7 +1399,8 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
                                                   scale=scale,
                                                   shear=shear,
                                                   hor_flip=hor_flip,
-                                                  ver_flip=ver_flip)
+                                                  ver_flip=ver_flip,
+                                                  applyfilter = applyfilter)
             X.append(x_image)
             Y.append(y_boxes)
 
@@ -1402,7 +1417,7 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
         Y = []
 
 def data_generator(img_dir, xml_dir, label_encoder, batch_size=None, steps_per_epoch=None, img_sz=224,
-                   translate=0, rotate=0, scale=0, shear=0, hor_flip=False, ver_flip=False):
+                   translate=0, rotate=0, scale=0, shear=0, hor_flip=False, ver_flip=False, applyfilter=False):
     """Data Generator
     Generate batches of tensor image data with real-time data augmentation from image and xml directory. The data will be looped over (in batches).
     Arguments:
@@ -1457,7 +1472,8 @@ def data_generator(img_dir, xml_dir, label_encoder, batch_size=None, steps_per_e
                                             scale=scale,
                                             shear=shear,
                                             hor_flip=hor_flip,
-                                            ver_flip=ver_flip)
+                                            ver_flip=ver_flip,
+                                            applyfilter=applyfilter)
 
     total_img = len(images)
 
