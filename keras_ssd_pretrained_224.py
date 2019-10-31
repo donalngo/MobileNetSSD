@@ -8,7 +8,7 @@ from tensorflow.keras.layers import Input, Lambda, Conv2D, MaxPooling2D, BatchNo
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.nn import relu6
-
+# Math Library
 import numpy as np
 import matplotlib
 import random
@@ -293,6 +293,9 @@ def match_multi(weight_matrix, threshold):
 
     return gt_indices_thresh_met, anchor_indices_thresh_met
 
+########################################################
+### SSD InputEncoder
+########################################################
 
 class SSDInputEncoder:
     '''
@@ -606,7 +609,9 @@ class SSDInputEncoder:
 
         return y_encoding_template
 
-
+########################################################
+### Anchor Boxes
+########################################################
 class AnchorBoxes(Layer):
     '''
     A Keras layer to create an output tensor containing anchor box coordinates
@@ -800,26 +805,6 @@ class AnchorBoxes(Layer):
 
         return boxes_tensor
 
-    def compute_output_shape(self, input_shape):
-        if K.image_dim_ordering() == 'tf':
-            batch_size, feature_map_height, feature_map_width, feature_map_channels = input_shape
-        else:  # Not yet relevant since TensorFlow is the only supported backend right now, but it can't harm to have this in here for the future
-            batch_size, feature_map_channels, feature_map_height, feature_map_width = input_shape
-        return (batch_size, feature_map_height, feature_map_width, self.n_boxes, 8)
-
-    def get_config(self):
-        config = {
-            'img_height': self.img_height,
-            'img_width': self.img_width,
-            'this_scale': self.this_scale,
-            'next_scale': self.next_scale,
-            'aspect_ratios': list(self.aspect_ratios),
-            'two_boxes_for_ar1': self.two_boxes_for_ar1,
-            'variances': list(self.variances),
-        }
-        base_config = super(AnchorBoxes, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
 
 ########################################################
 ### Loss Functions
@@ -962,6 +947,9 @@ class SSDLoss:
         total_loss = total_loss * tf.to_float(batch_size)
         return total_loss
 
+########################################################
+### MobileNet SSD
+########################################################
 
 def build_model(image_size,
                 n_classes,
@@ -1180,7 +1168,9 @@ def build_model(image_size,
 
     return model
 
-
+########################################################
+### Data Wrangler
+########################################################
 def read_csv(xml_path, filename):
     """Read CSV
     This function reads CSV File and returns a list
