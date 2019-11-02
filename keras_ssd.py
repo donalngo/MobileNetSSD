@@ -8,7 +8,7 @@ from tensorflow.keras.layers import Input, Lambda, Conv2D, MaxPooling2D, BatchNo
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.nn import relu6
-
+# Math Library
 import numpy as np
 import matplotlib
 import random
@@ -293,6 +293,9 @@ def match_multi(weight_matrix, threshold):
 
     return gt_indices_thresh_met, anchor_indices_thresh_met
 
+########################################################
+### SSD InputEncoder
+########################################################
 
 class SSDInputEncoder:
     '''
@@ -606,7 +609,9 @@ class SSDInputEncoder:
 
         return y_encoding_template
 
-
+########################################################
+### Anchor Boxes
+########################################################
 class AnchorBoxes(Layer):
     '''
     A Keras layer to create an output tensor containing anchor box coordinates
@@ -800,26 +805,6 @@ class AnchorBoxes(Layer):
 
         return boxes_tensor
 
-    def compute_output_shape(self, input_shape):
-        if K.image_dim_ordering() == 'tf':
-            batch_size, feature_map_height, feature_map_width, feature_map_channels = input_shape
-        else:  # Not yet relevant since TensorFlow is the only supported backend right now, but it can't harm to have this in here for the future
-            batch_size, feature_map_channels, feature_map_height, feature_map_width = input_shape
-        return (batch_size, feature_map_height, feature_map_width, self.n_boxes, 8)
-
-    def get_config(self):
-        config = {
-            'img_height': self.img_height,
-            'img_width': self.img_width,
-            'this_scale': self.this_scale,
-            'next_scale': self.next_scale,
-            'aspect_ratios': list(self.aspect_ratios),
-            'two_boxes_for_ar1': self.two_boxes_for_ar1,
-            'variances': list(self.variances),
-        }
-        base_config = super(AnchorBoxes, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
 
 ########################################################
 ### Loss Functions
@@ -962,6 +947,9 @@ class SSDLoss:
         total_loss = total_loss * tf.to_float(batch_size)
         return total_loss
 
+########################################################
+### MobileNet SSD
+########################################################
 
 def build_model(image_size,
                 n_classes,
@@ -1180,7 +1168,9 @@ def build_model(image_size,
 
     return model
 
-
+########################################################
+### Data Wrangler
+########################################################
 def read_csv(xml_path, filename):
     """Read CSV
     This function reads CSV File and returns a list
@@ -1236,7 +1226,8 @@ def xml_to_csv(xml_directory):
 
 def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, translate=0, rotate=0, scale=1, shear=0,
                        hor_flip=False,
-                       ver_flip=False):
+                       ver_flip=False,
+                       applyfilter=False):
     """Image Augmentation
     This function checks for multiple classes/bounding box in an image, resizes and augments images and
     returns augmented images and bounding box co-ordinates
@@ -1254,6 +1245,7 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, transl
 		shear (int, optional)= shear angle of image (0-45)
 		hor_flip (bool, optional)= True to allow generator to randomly flip images horizontally
 		ver_flip (bool, optional) = True to allow generator to randomly flip images vertically
+        applyfilter(bool, optional) = Apply random blurring, contrast, brightness and noise to the image
 
     #Returns
         image_aug : augmented image
@@ -1298,21 +1290,33 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, transl
         print ("error",filename)
 
     # use image aug to perform augmentation on image and bounding boxes
-    seq = iaa.Sequential([
-        iaa.Resize({"height": img_sz, "width": img_sz}),
-        # iaa.Rot90(flip),
-        iaa.Sometimes(0.5,
-                      iaa.GaussianBlur(sigma=(0, 0.5))), #Gaussian Blur
-        iaa.ContrastNormalization((0.75, 1.5)), # Change Contrast of Image
-        iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05 * 255), per_channel=0.5), # Add Gaussian Noise
-        iaa.Multiply((0.8, 1.2), per_channel=0.2), #Make images brighter or darker based on Channel
-        # iaa.Affine(
-        #     translate_percent={"x": (-translate, translate), "y": (-translate, translate)},
-        #     rotate=(-rotate, rotate),
-        #     scale=(1 / scale, scale),
-        #     shear=(-shear, shear)
-        # )
-    ])
+    if applyfilter is True:
+        seq = iaa.Sequential([
+            iaa.Resize({"height": img_sz, "width": img_sz}),
+            iaa.Rot90(flip),
+            iaa.Sometimes(0.5,
+                          iaa.GaussianBlur(sigma=(0, 0.5))), #Gaussian Blur
+            iaa.ContrastNormalization((0.75, 1.5)), # Change Contrast of Image
+            iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05 * 255), per_channel=0.5), # Add Gaussian Noise
+            iaa.Multiply((0.8, 1.2), per_channel=0.2), #Make images brighter or darker based on Channel
+            iaa.Affine(
+                translate_percent={"x": (-translate, translate), "y": (-translate, translate)},
+                rotate=(-rotate, rotate),
+                scale=(1 / scale, scale),
+                shear=(-shear, shear)
+            )
+        ])
+    else:
+        seq = iaa.Sequential([
+            iaa.Resize({"height": img_sz, "width": img_sz}),
+            iaa.Rot90(flip),
+            iaa.Affine(
+                translate_percent={"x": (-translate, translate), "y": (-translate, translate)},
+                rotate=(-rotate, rotate),
+                scale=(1 / scale, scale),
+                shear=(-shear, shear)
+            )
+        ])
     # Augment BBs and images.
     image_aug, bbs_aug = seq(image=img, bounding_boxes=bbs)
     image_aug = image_aug / 255
@@ -1330,7 +1334,7 @@ def image_augmentation(filename, data_csv=None, img_dir=None, img_sz=224, transl
 
 def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_encoder, img_sz=224, translate=0,
                           rotate=0,
-                          scale=0, shear=0, hor_flip=False, ver_flip=False):
+                          scale=0, shear=0, hor_flip=False, ver_flip=False, applyfilter=False):
     """Batch Generator for Training Images
     Generator which returns batches of numpy array consisting of 2 numpy arrays for training
 
@@ -1385,7 +1389,8 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
                                                   scale=scale,
                                                   shear=shear,
                                                   hor_flip=hor_flip,
-                                                  ver_flip=ver_flip)
+                                                  ver_flip=ver_flip,
+                                                  applyfilter = applyfilter)
             X.append(x_image)
             Y.append(y_boxes)
 
@@ -1402,7 +1407,7 @@ def image_batch_generator(img_dir, csv_data, steps_per_epoch, batch_size, label_
         Y = []
 
 def data_generator(img_dir, xml_dir, label_encoder, batch_size=None, steps_per_epoch=None, img_sz=224,
-                   translate=0, rotate=0, scale=0, shear=0, hor_flip=False, ver_flip=False):
+                   translate=0, rotate=0, scale=0, shear=0, hor_flip=False, ver_flip=False, applyfilter=False):
     """Data Generator
     Generate batches of tensor image data with real-time data augmentation from image and xml directory. The data will be looped over (in batches).
     Arguments:
@@ -1457,7 +1462,8 @@ def data_generator(img_dir, xml_dir, label_encoder, batch_size=None, steps_per_e
                                             scale=scale,
                                             shear=shear,
                                             hor_flip=hor_flip,
-                                            ver_flip=ver_flip)
+                                            ver_flip=ver_flip,
+                                            applyfilter=applyfilter)
 
     total_img = len(images)
 
