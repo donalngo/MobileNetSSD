@@ -27,6 +27,6 @@ conda create -n rtav python=3.6 numpy=1.16.5 opencv=4.1.0 matplotlib tensorflow=
 - Modify variable data_dir to point to the data directory
 - Run all the cells to train the model and plot predictions in the last cell
 
-## 3. PROJECT REPORT / PAPER
+## 3. Project Report
 
 `<Github File Link>` : <https://github.com/donalngo/MobileNetSSD/blob/master/Project%20Report.pdf>
