@@ -4,7 +4,7 @@
 1. [Executive Summary](#executive-summary)
 2. [User Guide](#user-guide)
 
-### Executive Summary
+## 1. Executive Summary
 
 
 
@@ -18,7 +18,7 @@ This is a TensorFlow Keras implementation of the  model architecture discussed a
 
 
 
-### User Guide
+## 2. User Guide
 #### Environment Setup
 conda create -n rtav python=3.6 numpy=1.16.5 opencv=4.1.0 matplotlib tensorflow=1.13.1 tensorflow-gpu=1.13.1 cudatoolkit=9.0 cudnn=7.1.4 scipy=1.1.0 scikit-learn=0.21.3 pillow=5.1.0 spyder=3.3.2 cython=0.29.2 pathlib=1.0.1 ipython=7.2.0 imutils=0.5.2 yaml pandas keras keras-gpu pydot graphviz scikit-image imgaug librosa
 
