@@ -2,9 +2,9 @@
 
 ### Contents
 
-1. [Executive Summary](#executive-summary)
-2. [User Guide](#user-guide)
-3. [Project Report](#project-report)
+1. [Executive Summary](#1-executive-summary)
+2. [User Guide](#2-user-guide)
+3. [Project Report](#3-project-report)
 
 ## 1. Executive Summary
 
