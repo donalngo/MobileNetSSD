@@ -22,8 +22,10 @@ This is a TensorFlow Keras implementation of the  model architecture discussed a
 ### 2.1 Environment Setup
 conda create -n rtav python=3.6 numpy=1.16.5 opencv=4.1.0 matplotlib tensorflow=1.13.1 tensorflow-gpu=1.13.1 cudatoolkit=9.0 cudnn=7.1.4 scipy=1.1.0 scikit-learn=0.21.3 pillow=5.1.0 spyder=3.3.2 cython=0.29.2 pathlib=1.0.1 ipython=7.2.0 imutils=0.5.2 yaml pandas keras keras-gpu pydot graphviz scikit-image imgaug librosa
 
+### 2.2 Dataset:
+The dataset can be downloaded from this Google Drive [link](https://drive.google.com/open?id=1mpJ3Oqv-RLlQ1t5fgfn7d2Fx4ui2VRYr). Thia data set contains three sub-directories, one each for Training, Validation and Test. The dataset primarily consists of two classes of supermarket objects - Apples and Bananas
 
-### 2.2 Training
+### 2.3 Training
 - Open train_ssd.ipynb python notebook
 - Modify variable data_dir to point to the data directory
 - Run all the cells to train the model and plot predictions in the last cell
