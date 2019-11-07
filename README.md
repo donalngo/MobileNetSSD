@@ -14,7 +14,7 @@ Our team hopes to solve both problems through the use of computer vision. An aut
 The team faced numerous challenges and went through multiple iterations in not just the model creation process but also the data collection and pre-processing. 
 The team managed to obtain a validation loss of 0.43871.
 
-This is a TensorFlow Keras implementation of the  model architecture discussed above.
+This is a TensorFlow Keras implementation of the  model architecture discussed above which were greatly helped by some other  existing implementations of SSD - [ssd_keras](https://github.com/pierluigiferrari/ssd_keras), [MobileNetSSD_keras](https://github.com/ManishSoni1908/Mobilenet-ssd-keras) and [MobileNetSSD-Caffe](https://github.com/chuanqi305/MobileNet-SSD)
 
 
 
